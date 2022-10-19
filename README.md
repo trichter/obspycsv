@@ -21,7 +21,7 @@ Install obspy. After that install obspycsv using pip by:
 
 Basic example using ObsPy's `read_events()`
 
-```py
+```
 >>> from obspy import read_events
 >>> events = read_events()  # load example events
 >>> print(events)
@@ -48,7 +48,7 @@ The following field names have to be used to read the origin time `time` (UTC ti
 The following additional field names have to be used: `lat, lon, dep, mag, magtype, id`. `magtype` and `mag` are optional.
 For external csv files, the format `'CSV'` has to be explicietly specified.
 
-```py
+```
 >>> cat external.csv
 Year, Month, Day, Hour, Minute, Seconds, code, Lat, Lon, Depth, Station_count, time_residual_RMS, Magnitude, etc
 2023, 05, 06, 19, 55, 01.3, LI, 10.1942, 124.8300, 50.47, 111, 0.0, 0.2, 42, 0.0, 0.0176, 0.0127, 0.02, 0.3, 2023abcde
