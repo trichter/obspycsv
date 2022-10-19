@@ -6,7 +6,7 @@ Simple CSV read/write support for ObsPy earthquake catalogs
 [![coverage](https://codecov.io/gh/trichter/obspycsv/branch/master/graph/badge.svg)](https://codecov.io/gh/trichter/obspycsv)
 [![version](https://img.shields.io/pypi/v/obspycsv.svg)](https://pypi.python.org/pypi/obspycsv)
 [![pyversions](https://img.shields.io/pypi/pyversions/obspycsv.svg)](https://python.org)
-[![zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo..svg)](https://doi.org/10.5281/zenodo.)
+[![zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.7225902.svg)](https://doi.org/10.5281/zenodo.7225902)
 
 Writes and reads the most basic properties of ObsPy earthquake catalogs to/from CSV files.
 
