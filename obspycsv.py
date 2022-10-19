@@ -15,8 +15,8 @@ from obspy import UTCDateTime as UTC
 from obspy.core.event import Catalog, Event, Magnitude, Origin, ResourceIdentifier
 
 
-__version__ = '0.1.0'
-DEFAULT = {'magtype': None}
+__version__ = '0.2.0'
+DEFAULT = {'magtype': 'None'}
 FIELDS = '{time!s:.22} {lat:.4f} {lon:.4f} {dep:.3f} {mag:.1f} {magtype} {id}'.split()
 
 
@@ -64,6 +64,8 @@ def read_csv(fname, skipheader=0, depth_in_km=True, default=None,
             dep = float(row['dep']) * (1000 if depth_in_km else 1)
             origin = Origin(time=time, latitude=row['lat'], longitude=row['lon'], depth=dep)
             magtype = row.get('magtype', DEFAULT.get('magtype'))
+            if magtype == 'None':
+                magtype = None
             # add zero to eliminate negative zeros in magnitudes
             mag = float(row['mag'])+0
             magnitude = Magnitude(mag=mag, magnitude_type=magtype)
@@ -92,26 +94,18 @@ def write_csv(events, fname, depth_in_km=True, delimiter=',', fields=FIELDS):
         for event in events:
             try:
                 ori = event.preferred_origin() or event.origins[0]
-            except:
-                from warnings import warn
-                warn(f'Cannot write event, because no oring was found: {event}')
-                continue
-            try:
                 mag = event.preferred_magnitude() or event.magnitudes[0]
             except:
                 from warnings import warn
-                warn(f'No magnitude found: {event}')
-                magv = None
-                magtype = None
-            else:
-                magv = mag.mag
-                magtype = mag.magnitude_type
+                eventstr = str(event).splitlines()[0]
+                warn(f'Cannot write event, because no origin or no magnitude was found: {eventstr}')
+                continue
             id_ = str(event.resource_id).split('/')[-1]
             d = {'time': ori.time,
                  'lat': ori.latitude,
                  'lon': ori.longitude,
                  'dep': ori.depth / (1000 if depth_in_km else 1),
-                 'mag': magv,
-                 'magtype': magtype,
+                 'mag': mag.mag,
+                 'magtype': mag.magnitude_type,
                  'id': id_}
             f.write(fmtstr.format(**d) + '\n')

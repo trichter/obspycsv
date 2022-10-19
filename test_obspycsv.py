@@ -31,6 +31,19 @@ class CSVTestCase(unittest.TestCase):
         self.assertEqual(len(events), 1)
         self.assertEqual(str(events[0].origins[0].time), '2023-05-06T19:55:01.300000Z')
 
+    def test_incomplete_catalogs(self):
+        events = read_events()
+        del events[0].magnitudes[0].magnitude_type
+        events[1].magnitudes = []
+        events[2].origins = []
+        with NamedTemporaryFile(suffix='.csv') as ft:
+            with self.assertWarns(Warning):
+                events.write(ft.name, 'CSV')
+            events2 = read_events(ft.name)
+        self.assertEqual(len(events2), 1)
+        self.assertEqual(events2[0].origins[0].time,
+                          events[0].origins[0].time)
+
 
 def suite():
     return unittest.makeSuite(CSVTestCase, 'test')
