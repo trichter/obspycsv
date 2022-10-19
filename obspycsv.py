@@ -20,12 +20,6 @@ DEFAULT = {'magtype': None}
 FIELDS = '{time!s:.22} {lat:.4f} {lon:.4f} {dep:.3f} {mag:.1f} {magtype} {id}'.split()
 
 
-def _kwargs_allowed():
-    kws = ['skipheader', 'depth_in_km', 'default', 'fieldnames', 'dialect']
-    kws = kws + [kw for kw in dir(csv.unix_dialect()) if kw[0] != '_']
-    return kws
-
-
 def _is_csv(fname, **kwargs):
     try:
         read_csv(fname)
