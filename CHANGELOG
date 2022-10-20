@@ -1,0 +1,6 @@
+v0.1.0:
+  * initial release
+v0.2.0:
+  * fix: skip events without magnitude or origin
+v0.3.0:
+  * add CSZ format to store a catalog with picks
