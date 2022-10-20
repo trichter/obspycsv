@@ -22,11 +22,16 @@ DESCRIPTION = README.split('\n')[2]
 LONG_DESCRIPTION = '\n'.join(README.split('\n')[10:])
 
 ENTRY_POINTS = {
-    'obspy.plugin.event': ['CSV = obspycsv'],
+    'obspy.plugin.event': ['CSV = obspycsv',
+                           'CSZ = obspycsv'],
     'obspy.plugin.event.CSV': [
         'isFormat = obspycsv:_is_csv',
         'readFormat = obspycsv:read_csv',
-        'writeFormat = obspycsv:write_csv']}
+        'writeFormat = obspycsv:write_csv'],
+    'obspy.plugin.event.CSZ': [
+        'isFormat = obspycsv:_is_csz',
+        'readFormat = obspycsv:read_csz',
+        'writeFormat = obspycsv:write_csz']}
 
 CLASSIFIERS = [
     'Environment :: Console',

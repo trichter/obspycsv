@@ -8,7 +8,7 @@ Simple CSV read/write support for ObsPy earthquake catalogs
 [![pyversions](https://img.shields.io/pypi/pyversions/obspycsv.svg)](https://python.org)
 [![zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.7225902.svg)](https://doi.org/10.5281/zenodo.7225902)
 
-Writes and reads the most basic properties of ObsPy earthquake catalogs to/from CSV files.
+Writes and reads ObsPy earthquake catalogs to/from CSV or CSZ files.
 
 ## Installation
 
@@ -16,8 +16,7 @@ Install obspy. After that install obspycsv using pip by:
 
     pip install obspycsv
 
-
-## Usage
+## Usage CSV
 
 Basic example using ObsPy's `read_events()`
 
@@ -56,4 +55,31 @@ Year, Month, Day, Hour, Minute, Seconds, code, Lat, Lon, Depth, Station_count, t
 events = read_events('external.csv', 'CSV', skipheader=1, fieldnames=fields)
 1 Event(s) in Catalog:
 2023-05-06T19:55:01.300000Z | +10.194, +124.830 | 0.2  None
+```
+
+## Usage CSZ
+
+CSZ format can be used to store a catalog with picks in a set of csv files zipped into a single file.
+It works similar to NumPy's npz format. Because ObsPy automatically unpacks zip archives,
+two files are stored, a dummy CSV and the zip archive with extension CSZIP.
+
+```
+>>> events = read_events('/path/to/example.pha')
+>>> print(events)
+2 Event(s) in Catalog:
+2025-05-14T14:35:35.510000Z | +40.225,  +10.450 | 3.5  None
+2025-05-14T15:43:05.280000Z | +40.223,  +10.450 | 1.8  None
+>>> print(len(events[0].picks))
+2
+>>> events.write('test.csz', 'CSZ')
+>>> events2 = read_events('test.csz')
+>>> print(events2)
+2 Event(s) in Catalog:
+2025-05-14T14:35:35.510000Z | +40.225,  +10.450 | 3.5  None
+2025-05-14T15:43:05.280000Z | +40.223,  +10.450 | 1.8  None
+>>> print(len(events2[0].picks))
+2
+>>> ls
+test.csz
+test.cszip
 ```

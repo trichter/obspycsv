@@ -44,6 +44,23 @@ class CSVTestCase(unittest.TestCase):
         self.assertEqual(events2[0].origins[0].time,
                           events[0].origins[0].time)
 
+    def test_io_csz(self):
+        import os.path
+        from tempfile import gettempdir
+
+        events = read_events('/path/to/example.pha')
+        tempdir = gettempdir()
+        fname = os.path.join(tempdir, 'obbspycsv_testfile.csz')
+        events.write(fname, 'CSZ')
+        self.assertTrue(obspycsv._is_csz(fname))
+        events2 = read_events(fname)
+        self.assertEqual(len(events2), len(events))
+        for ev1, ev2 in zip(events, events2):
+            self.assertEqual(len(ev2.origins[0].arrivals),
+                              len(ev1.origins[0].arrivals))
+            self.assertEqual(len(ev2.picks),
+                              len(ev1.picks))
+
 
 def suite():
     return unittest.makeSuite(CSVTestCase, 'test')
