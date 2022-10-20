@@ -1,6 +1,6 @@
 # obspycsv
 
-Simple CSV read/write support for ObsPy earthquake catalogs
+CSV and CSZ read/write support for ObsPy earthquake catalogs
 
 [![build status](https://github.com/trichter/obspycsv/workflows/tests/badge.svg)](https://github.com/trichter/obspycsv/actions)
 [![coverage](https://codecov.io/gh/trichter/obspycsv/branch/master/graph/badge.svg)](https://codecov.io/gh/trichter/obspycsv)
@@ -18,7 +18,7 @@ Install obspy. After that install obspycsv using pip by:
 
 ## Usage CSV
 
-Basic example using ObsPy's `read_events()`
+CSZ format can be used to store a catalog with basic origin properties. Picks cannot be stored.
 
 ```
 >>> from obspy import read_events
@@ -41,8 +41,7 @@ time,lat,lon,dep,mag,magtype,id
 2012-04-04T14:08:46.00,38.0170,37.7360,7.000,3.0,ML,20120404_0000039
 ```
 
-It is not possible to write picks, only basic origin and magnitude properties.
-It is possible, however, to load arbritary csv files. Define the field names in the code or use the first line in the file to define the field names.
+It is possible to load arbritary csv files. Define the field names in the code or use the first line in the file to define the field names.
 The following field names have to be used to read the origin time `time` (UTC time string) or `year, mon, day, hour, minu, sec`.
 The following additional field names have to be used: `lat, lon, dep, mag, magtype, id`. `magtype` and `mag` are optional.
 For external csv files, the format `'CSV'` has to be explicietly specified.

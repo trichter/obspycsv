@@ -1,6 +1,6 @@
 ## Copyright 2022 Tom Eulenfeld, MIT license
 """
-CSV or CSZ read/write support for ObsPy earthquake catalogs
+CSV and CSZ read/write support for ObsPy earthquake catalogs
 
 You have to use the field names
 time or year, mon, day, hour, minu, sec
