@@ -3,4 +3,6 @@ v0.1.0:
 v0.2.0:
   * fix: skip events without magnitude or origin
 v0.3.0:
-  * add CSZ format to store a catalog with picks
+  * add CSZ format to read/write a catalog with picks
+  * set higher precision
+  * allow to read/write events without magnitude

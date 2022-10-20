@@ -10,6 +10,7 @@ lat, lon, dep, mag, magtype, id
 import csv
 from contextlib import contextmanager
 import io
+import math
 import os.path
 from string import Formatter
 
@@ -20,10 +21,10 @@ from obspy.core.event import (
 
 
 __version__ = '0.3.0'
-DEFAULT = {'magtype': 'None'}
-FIELDS = '{time!s:.22} {lat:.4f} {lon:.4f} {dep:.3f} {mag:.1f} {magtype} {id}'.split()
-PFIELDS = '{seedid} {phase} {time:.5f} {weight:.3f}'.split()
 
+DEFAULT = {'magtype': None}
+FIELDS = '{time!s:.25} {lat:.6f} {lon:.6f} {dep:.3f} {mag:.2f} {magtype} {id}'.split()
+PFIELDS = '{seedid} {phase} {time:.5f} {weight:.3f}'.split()
 
 
 def _is_csv(fname, **kwargs):
@@ -40,6 +41,10 @@ def _is_csz(fname, **kwargs):
 
 def _evid(event):
     return str(event.resource_id).split('/')[-1]
+
+
+def _origin(event):
+    return event.preferred_origin() or event.origins[0]
 
 
 @contextmanager
@@ -86,7 +91,6 @@ def write_csz(events, fname, compress=False):
     :param fname: file name
     """
     import zipfile
-    import io
 
     compression = zipfile.ZIP_DEFLATED if compress else zipfile.ZIP_STORED
     with zipfile.ZipFile(fname + 'ip', mode='w', compression=compression) as zipf:
@@ -97,6 +101,10 @@ def write_csz(events, fname, compress=False):
             if len(event.picks) == 0:
                 continue
             evid = str(event.resource_id).split('/')[-1]
+            try:
+                origin = _origin(event)
+            except:
+                continue
             with io.StringIO() as f:
                 _write_picks(event, f)
                 zipf.writestr(f'picks_{evid}.csv', f.getvalue())
@@ -106,7 +114,7 @@ def write_csz(events, fname, compress=False):
 
 
 def _read_picks(event, fname):
-    otime = event.origins[0].time
+    otime = _origin(event).time
     picks = []
     arrivals = []
     with _open(fname) as f:
@@ -128,11 +136,11 @@ def _write_picks(event, fname, delimiter=','):
     fmtstr = delimiter.join(PFIELDS)
     fieldnames = [
         fn for _, fn, _, _ in Formatter().parse(fmtstr) if fn is not None]
-    origin = event.origins[0]
+    origin = _origin(event)
     weights = {str(arrival.pick_id): arrival.time_weight
                for arrival in origin.arrivals if arrival.time_weight}
     phases = {str(arrival.pick_id): arrival.phase
-               for arrival in origin.arrivals if arrival.time_weight}
+               for arrival in origin.arrivals if arrival.phase}
     with _open(fname, 'w') as f:
         f.write(delimiter.join(fieldnames) + '\n')
         for pick in event.picks:
@@ -179,14 +187,24 @@ def read_csv(fname, skipheader=0, depth_in_km=True, default=None,
                 time = UTC('{year}-{mon}-{day} {hour}:{minu}:{sec}'.format(**row))
             dep = float(row['dep']) * (1000 if depth_in_km else 1)
             origin = Origin(time=time, latitude=row['lat'], longitude=row['lon'], depth=dep)
-            magtype = row.get('magtype', DEFAULT.get('magtype'))
-            if magtype == 'None':
-                magtype = None
-            # add zero to eliminate negative zeros in magnitudes
-            mag = float(row['mag'])+0
-            magnitude = Magnitude(mag=mag, magnitude_type=magtype)
+            try:
+                # add zero to eliminate negative zeros in magnitudes
+                mag = float(row['mag'])+0
+                if math.isnan(mag):
+                    raise
+            except:
+                magnitudes = []
+            else:
+                try:
+                    magtype = row['magtype']
+                except:
+                    magtype = DEFAULT.get('magtype')
+                else:
+                    if magtype.lower() in ('none', 'null', 'nan'):
+                        magtype = None
+                magnitudes = [Magnitude(mag=mag, magnitude_type=magtype)]
             id_ = ResourceIdentifier(row['id'].strip()) if 'id' in row else None
-            event = Event(magnitudes=[magnitude], origins=[origin], resource_id=id_)
+            event = Event(magnitudes=magnitudes, origins=[origin], resource_id=id_)
             events.append(event)
     return Catalog(events=events)
 
@@ -206,20 +224,28 @@ def write_csv(events, fname, depth_in_km=True, delimiter=','):
     with _open(fname, 'w') as f:
         f.write(delimiter.join(fieldnames) + '\n')
         for event in events:
+            evid = str(event.resource_id).split('/')[-1]
             try:
-                ori = event.preferred_origin() or event.origins[0]
-                mag = event.preferred_magnitude() or event.magnitudes[0]
+                origin = _origin(event)
             except:
                 from warnings import warn
-                eventstr = str(event).splitlines()[0]
-                warn(f'Cannot write event, because no origin or no magnitude was found: {eventstr}')
+                warn(f'No origin found -> do not write event {evid}')
                 continue
-            evid = str(event.resource_id).split('/')[-1]
-            d = {'time': ori.time,
-                 'lat': ori.latitude,
-                 'lon': ori.longitude,
-                 'dep': ori.depth / (1000 if depth_in_km else 1),
-                 'mag': mag.mag,
-                 'magtype': mag.magnitude_type,
+            try:
+                magnitude = event.preferred_magnitude() or event.magnitudes[0]
+            except:
+                from warnings import warn
+                warn(f'No magnitude found for event {evid}')
+                mag = float('nan')
+                magtype = None
+            else:
+                mag = magnitude.mag
+                magtype = magnitude.magnitude_type
+            d = {'time': origin.time,
+                 'lat': origin.latitude,
+                 'lon': origin.longitude,
+                 'dep': origin.depth / (1000 if depth_in_km else 1),
+                 'mag': mag,
+                 'magtype': magtype,
                  'id': evid}
             f.write(fmtstr.format(**d) + '\n')

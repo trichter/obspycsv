@@ -1,4 +1,6 @@
 # Copyright 2013-2016 Tom Eulenfeld, MIT license
+import os.path
+from tempfile import gettempdir
 import unittest
 
 from obspy import read_events
@@ -19,17 +21,23 @@ class CSVTestCase(unittest.TestCase):
 
     def test_reading_external_catalog(self):
         external = (
-            "Year, Month, Day, Hour, Minute, Seconds, code, Lat, Lon, Depth, Station_count, time_residual_RMS, Magnitude, etc\n"
-            "2023, 05, 06, 19, 55, 01.3, LI, 10.1942, 124.8300, 50.47, 111, 0.0, 0.2, 42, 0.0, 0.0176, 0.0127, 0.02, 0.3, 2023abcde"
+            'Year, Month, Day, Hour, Minute, Seconds, code, Lat, Lon, Depth, Station_count, time_residual_RMS, Magnitude, etc\n'
+            '2023, 05, 06, 19, 55, 01.3, LI, 10.1942, 124.8300, 50.47, 111, 0.0, 0.2, 42, 0.0, 0.0176, 0.0127, 0.02, 0.3, 2023abcde'
             )
         fields = 'year mon day hour minu sec _ lat lon dep _ _ mag _ _ _ _ _ _ id'.split()
+        incomplete_fields = 'year mon day hour minu sec _ lat lon dep'.split()
         with NamedTemporaryFile(suffix='.csv') as ft:
             with open(ft.name, 'w') as f:
                 f.write(external)
             self.assertFalse(obspycsv._is_csv(ft.name))
             events = read_events(ft.name, 'CSV', skipheader=1, fieldnames=fields)
+            events2 = read_events(ft.name, 'CSV', skipheader=1, fieldnames=incomplete_fields)
         self.assertEqual(len(events), 1)
         self.assertEqual(str(events[0].origins[0].time), '2023-05-06T19:55:01.300000Z')
+        self.assertEqual(len(events[0].magnitudes), 1)
+        self.assertEqual(len(events2), 1)
+        self.assertEqual(str(events2[0].origins[0].time), '2023-05-06T19:55:01.300000Z')
+        self.assertEqual(len(events2[0].magnitudes), 0)
 
     def test_incomplete_catalogs(self):
         events = read_events()
@@ -39,15 +47,14 @@ class CSVTestCase(unittest.TestCase):
         with NamedTemporaryFile(suffix='.csv') as ft:
             with self.assertWarns(Warning):
                 events.write(ft.name, 'CSV')
-            events2 = read_events(ft.name)
-        self.assertEqual(len(events2), 1)
+            events2 = read_events(ft.name, 'CSV')
+        self.assertEqual(len(events2), 2)
         self.assertEqual(events2[0].origins[0].time,
                           events[0].origins[0].time)
+        self.assertEqual(events2[1].origins[0].time,
+                          events[1].origins[0].time)
 
     def test_io_csz(self):
-        import os.path
-        from tempfile import gettempdir
-
         events = read_events('/path/to/example.pha')
         tempdir = gettempdir()
         fname = os.path.join(tempdir, 'obbspycsv_testfile.csz')
@@ -59,7 +66,30 @@ class CSVTestCase(unittest.TestCase):
             self.assertEqual(len(ev2.origins[0].arrivals),
                               len(ev1.origins[0].arrivals))
             self.assertEqual(len(ev2.picks),
-                              len(ev1.picks))
+                             len(ev1.picks))
+        # test with missing origin
+        events[1].origins = []
+        with self.assertWarns(Warning):
+            events.write(fname, 'CSZ')
+        self.assertTrue(obspycsv._is_csz(fname))
+        events2 = read_events(fname)
+        self.assertEqual(len(events2), 1)
+        self.assertEqual(len(events2[0].origins[0].arrivals),
+                         len(events[0].origins[0].arrivals))
+        self.assertEqual(len(events2[0].picks),
+                         len(events[0].picks))
+
+    def test_io_csz_without_picks(self):
+        events = read_events()
+        tempdir = gettempdir()
+        fname = os.path.join(tempdir, 'obbspycsv_testfile2.csz')
+        events.write(fname, 'CSZ')
+        self.assertTrue(obspycsv._is_csz(fname))
+        events2 = read_events(fname)
+        self.assertEqual(len(events2), len(events))
+        # the zip archive itself gets recognized by ObsPy as CSV file
+        events3 = read_events(fname + 'ip')
+        self.assertEqual(str(events3), str(events2))
 
 
 def suite():

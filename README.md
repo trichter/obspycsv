@@ -8,17 +8,15 @@ CSV and CSZ read/write support for ObsPy earthquake catalogs
 [![pyversions](https://img.shields.io/pypi/pyversions/obspycsv.svg)](https://python.org)
 [![zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.7225902.svg)](https://doi.org/10.5281/zenodo.7225902)
 
-Writes and reads ObsPy earthquake catalogs to/from CSV or CSZ files.
-
 ## Installation
 
-Install obspy. After that install obspycsv using pip by:
+Install ObsPy. After that install obspycsv using pip by:
 
     pip install obspycsv
 
 ## Usage CSV
 
-CSZ format can be used to store a catalog with basic origin properties. Picks cannot be stored.
+CSV format can be used to store a catalog with basic origin properties. Picks cannot be stored.
 
 ```
 >>> from obspy import read_events
@@ -36,15 +34,15 @@ CSZ format can be used to store a catalog with basic origin properties. Picks ca
 2012-04-04T14:08:46.000000Z | +38.017,  +37.736 | 3.0  ML
 >>> cat catalog.csv
 time,lat,lon,dep,mag,magtype,id
-2012-04-04T14:21:42.30,41.8180,79.6890,1.000,4.4,mb,20120404_0000041
-2012-04-04T14:18:37.00,39.3420,41.0440,14.400,4.3,ML,20120404_0000038
-2012-04-04T14:08:46.00,38.0170,37.7360,7.000,3.0,ML,20120404_0000039
+2012-04-04T14:21:42.30000,41.818000,79.689000,1.000,4.40,mb,20120404_0000041
+2012-04-04T14:18:37.00000,39.342000,41.044000,14.400,4.30,ML,20120404_0000038
+2012-04-04T14:08:46.00000,38.017000,37.736000,7.000,3.00,ML,20120404_0000039
 ```
 
-It is possible to load arbritary csv files. Define the field names in the code or use the first line in the file to define the field names.
-The following field names have to be used to read the origin time `time` (UTC time string) or `year, mon, day, hour, minu, sec`.
-The following additional field names have to be used: `lat, lon, dep, mag, magtype, id`. `magtype` and `mag` are optional.
-For external csv files, the format `'CSV'` has to be explicietly specified.
+It is possible to load arbitrary csv files. Define the field names in the code or use the first line in the file to define the field names.
+The following field names have to be used to read the origin time: `time` (UTC time string) or `year, mon, day, hour, minu, sec`.
+The following additional field names have to be used: `lat, lon, dep, mag, magtype, id`. `magtype`, `mag` and `id` are optional.
+For external csv files, the format `'CSV'` has to be explicitly specified.
 
 ```
 >>> cat external.csv
