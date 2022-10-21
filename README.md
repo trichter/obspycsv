@@ -75,4 +75,5 @@ to read files with ObsPy use the option `check_compression=False` or use the `re
 2025-05-14T14:35:35.510000Z | +40.225,  +10.450 | 3.5  None
 2025-05-14T15:43:05.280000Z | +40.223,  +10.450 | 1.8  None
 >>> print(len(events2[0].picks))
+2
 ```
