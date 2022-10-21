@@ -11,7 +11,6 @@ import csv
 from contextlib import contextmanager
 import io
 import math
-import os.path
 from string import Formatter
 
 from obspy import UTCDateTime as UTC
@@ -36,7 +35,13 @@ def _is_csv(fname, **kwargs):
 
 
 def _is_csz(fname, **kwargs):
-    return os.path.exists(fname + 'ip')
+    try:
+        import zipfile
+        with zipfile.ZipFile(fname) as zipf:
+            assert 'events.csv' in zipf.namelist()
+    except:
+        return False
+    return True
 
 
 def _evid(event):
@@ -57,7 +62,7 @@ def _open(filein, *args, **kwargs):
         yield filein
 
 
-def read_csz(fname, default=None):
+def read_csz(fname, default=None, check_compression=None):
     """
     Read a CSZ file and return ObsPy Catalog with picks
 
@@ -66,20 +71,16 @@ def read_csz(fname, default=None):
          i.e. to set magtypes use `default={'magtype': 'Ml'}`
     """
     import zipfile
-    fname2 = fname + 'ip'
-    if os.path.exists(fname2):
-        fname = fname2
-    with open(fname, 'rb') as fw:
-        with zipfile.ZipFile(fw) as zipf:
-            with io.TextIOWrapper(zipf.open('events.csv'), encoding='utf-8') as f:
-                events = read_csv(f, default=default)
-            for event in events:
-                evid = _evid(event)
-                fname = f'picks_{evid}.csv'
-                if fname not in zipf.namelist():
-                    continue
-                with io.TextIOWrapper(zipf.open(fname), encoding='utf-8') as f:
-                    _read_picks(event, f)
+    with zipfile.ZipFile(fname) as zipf:
+        with io.TextIOWrapper(zipf.open('events.csv'), encoding='utf-8') as f:
+            events = read_csv(f, default=default)
+        for event in events:
+            evid = _evid(event)
+            fname = f'picks_{evid}.csv'
+            if fname not in zipf.namelist():
+                continue
+            with io.TextIOWrapper(zipf.open(fname), encoding='utf-8') as f:
+                _read_picks(event, f)
     return events
 
 
@@ -93,7 +94,7 @@ def write_csz(events, fname, compress=False):
     import zipfile
 
     compression = zipfile.ZIP_DEFLATED if compress else zipfile.ZIP_STORED
-    with zipfile.ZipFile(fname + 'ip', mode='w', compression=compression) as zipf:
+    with zipfile.ZipFile(fname, mode='w', compression=compression) as zipf:
         with io.StringIO() as f:
             write_csv(events, f)
             zipf.writestr('events.csv', f.getvalue())
@@ -102,15 +103,12 @@ def write_csz(events, fname, compress=False):
                 continue
             evid = str(event.resource_id).split('/')[-1]
             try:
-                origin = _origin(event)
+                _origin(event)
             except:
                 continue
             with io.StringIO() as f:
                 _write_picks(event, f)
                 zipf.writestr(f'picks_{evid}.csv', f.getvalue())
-    with open(fname, 'w') as f:
-        f.write('CSZ file\nThis dummy file is necessary, because ObsPy '
-                'otherwise will automatically uncompress the cszip file.\n')
 
 
 def _read_picks(event, fname):

@@ -58,21 +58,23 @@ class CSVTestCase(unittest.TestCase):
         events = read_events('/path/to/example.pha')
         tempdir = gettempdir()
         fname = os.path.join(tempdir, 'obbspycsv_testfile.csz')
-        events.write(fname, 'CSZ')
-        self.assertTrue(obspycsv._is_csz(fname))
-        events2 = read_events(fname)
-        self.assertEqual(len(events2), len(events))
-        for ev1, ev2 in zip(events, events2):
-            self.assertEqual(len(ev2.origins[0].arrivals),
-                              len(ev1.origins[0].arrivals))
-            self.assertEqual(len(ev2.picks),
-                             len(ev1.picks))
-        # test with missing origin
-        events[1].origins = []
-        with self.assertWarns(Warning):
+        with NamedTemporaryFile(suffix='.csz') as ft:
+            fname = ft.name
             events.write(fname, 'CSZ')
-        self.assertTrue(obspycsv._is_csz(fname))
-        events2 = read_events(fname)
+            self.assertTrue(obspycsv._is_csz(fname))
+            events2 = read_events(fname, check_compression=False)
+            self.assertEqual(len(events2), len(events))
+            for ev1, ev2 in zip(events, events2):
+                self.assertEqual(len(ev2.origins[0].arrivals),
+                                  len(ev1.origins[0].arrivals))
+                self.assertEqual(len(ev2.picks),
+                                 len(ev1.picks))
+            # test with missing origin
+            events[1].origins = []
+            with self.assertWarns(Warning):
+                events.write(fname, 'CSZ')
+            self.assertTrue(obspycsv._is_csz(fname))
+            events2 = read_events(fname, check_compression=False)
         self.assertEqual(len(events2), 1)
         self.assertEqual(len(events2[0].origins[0].arrivals),
                          len(events[0].origins[0].arrivals))
@@ -81,15 +83,17 @@ class CSVTestCase(unittest.TestCase):
 
     def test_io_csz_without_picks(self):
         events = read_events()
-        tempdir = gettempdir()
-        fname = os.path.join(tempdir, 'obbspycsv_testfile2.csz')
-        events.write(fname, 'CSZ')
-        self.assertTrue(obspycsv._is_csz(fname))
-        events2 = read_events(fname)
-        self.assertEqual(len(events2), len(events))
-        # the zip archive itself gets recognized by ObsPy as CSV file
-        events3 = read_events(fname + 'ip')
-        self.assertEqual(str(events3), str(events2))
+        with NamedTemporaryFile(suffix='.csz') as ft:
+            fname = ft.name
+            events.write(fname, 'CSZ')
+            self.assertTrue(obspycsv._is_csz(fname))
+            events2 = read_events(fname, check_compression=False)
+            self.assertEqual(events2[0]._format, 'CSZ')
+            self.assertEqual(len(events2), len(events))
+            # the zip archive itself gets recognized by ObsPy as CSV file
+            events3 = read_events(fname)
+            self.assertEqual(events3[0]._format, 'CSV')
+            self.assertEqual(str(events3), str(events2))
 
 
 def suite():
