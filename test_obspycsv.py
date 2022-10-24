@@ -60,26 +60,35 @@ class CSVTestCase(unittest.TestCase):
         fname = os.path.join(tempdir, 'obbspycsv_testfile.csz')
         with NamedTemporaryFile(suffix='.csz') as ft:
             fname = ft.name
-            events.write(fname, 'CSZ')
-            self.assertTrue(obspycsv._is_csz(fname))
-            events2 = read_events(fname, check_compression=False)
-            self.assertEqual(len(events2), len(events))
-            for ev1, ev2 in zip(events, events2):
-                self.assertEqual(len(ev2.origins[0].arrivals),
-                                  len(ev1.origins[0].arrivals))
-                self.assertEqual(len(ev2.picks),
-                                 len(ev1.picks))
+            def _test_write_read(events, **kw):
+                events.write(fname, 'CSZ', **kw)
+                self.assertTrue(obspycsv._is_csz(fname))
+                events2 = read_events(fname, check_compression=False)
+                self.assertEqual(len(events2), len(events))
+                for ev1, ev2 in zip(events, events2):
+                    self.assertEqual(len(ev2.origins[0].arrivals),
+                                      len(ev1.origins[0].arrivals))
+                    self.assertEqual(len(ev2.picks),
+                                     len(ev1.picks))
+            _test_write_read(events)
+            _test_write_read(events, compression=False)
+            try:
+                import zlib
+            except ImportError:
+                pass
+            else:
+                _test_write_read(events, compression=True, compresslevel=6)
             # test with missing origin
             events[1].origins = []
             with self.assertWarns(Warning):
                 events.write(fname, 'CSZ')
             self.assertTrue(obspycsv._is_csz(fname))
             events2 = read_events(fname, check_compression=False)
-        self.assertEqual(len(events2), 1)
-        self.assertEqual(len(events2[0].origins[0].arrivals),
-                         len(events[0].origins[0].arrivals))
-        self.assertEqual(len(events2[0].picks),
-                         len(events[0].picks))
+            self.assertEqual(len(events2), 1)
+            self.assertEqual(len(events2[0].origins[0].arrivals),
+                             len(events[0].origins[0].arrivals))
+            self.assertEqual(len(events2[0].picks),
+                             len(events[0].picks))
 
     def test_io_csz_without_picks(self):
         events = read_events()

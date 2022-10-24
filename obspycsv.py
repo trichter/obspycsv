@@ -84,17 +84,22 @@ def read_csz(fname, default=None, check_compression=None):
     return events
 
 
-def write_csz(events, fname, compress=False):
+def write_csz(events, fname, **kwargs):
     """
     Write ObsPy catalog to CSZ file
 
     :param events: catalog or list of events
     :param fname: file name
+    :param **kwargs: compression and compression level can be specified see
+    https://docs.python.org/library/zipfile.html#zipfile.ZipFile
+    ```
+    events.write('CSZ', compression=True, compresslevel=9)
+    ```
     """
     import zipfile
-
-    compression = zipfile.ZIP_DEFLATED if compress else zipfile.ZIP_STORED
-    with zipfile.ZipFile(fname, mode='w', compression=compression) as zipf:
+    if kwargs.get('compression') is True:  # allow True as value for compression
+        kwargs['compression'] = zipfile.ZIP_DEFLATED
+    with zipfile.ZipFile(fname, mode='w', **kwargs) as zipf:
         with io.StringIO() as f:
             write_csv(events, f)
             zipf.writestr('events.csv', f.getvalue())
