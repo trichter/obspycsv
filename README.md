@@ -79,3 +79,8 @@ Compression may be used with `compression` and `compresslevel` parameters
 >>> print(len(events2[0].picks))
 2
 ```
+
+## Miscellaneous
+
+Plese submit an issue if you want to see support for other properties.
+Questions can be asked in the ObsPy forum.
