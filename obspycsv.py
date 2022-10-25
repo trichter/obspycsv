@@ -156,7 +156,7 @@ def _write_picks(event, fname, delimiter=','):
 
 
 def read_csv(fname, skipheader=0, depth_in_km=True, default=None,
-             **kwargs):
+             check_compression=None, **kwargs):
     """
     Read a CSV file and return ObsPy Catalog
 
