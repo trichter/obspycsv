@@ -54,7 +54,7 @@ def _origin(event):
 
 @contextmanager
 def _open(filein, *args, **kwargs):
-    "Accept bot files or file names"""
+    "Accept both files or file names"""
     if isinstance(filein, str):  # filename
         with open(filein, *args, **kwargs) as f:
             yield f
