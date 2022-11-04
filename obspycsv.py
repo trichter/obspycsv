@@ -19,7 +19,7 @@ from obspy.core.event import (
     ResourceIdentifier)
 
 
-__version__ = '0.3.0'
+__version__ = '0.3.1-dev'
 
 DEFAULT = {'magtype': None}
 FIELDS = '{time!s:.25} {lat:.6f} {lon:.6f} {dep:.3f} {mag:.2f} {magtype} {id}'.split()
