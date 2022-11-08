@@ -3,6 +3,7 @@ import os.path
 from tempfile import gettempdir
 import unittest
 
+import numpy as np
 from obspy import read_events
 from obspy.core.util import NamedTemporaryFile
 import obspycsv
@@ -43,7 +44,9 @@ class CSVTestCase(unittest.TestCase):
         events = read_events()
         del events[0].magnitudes[0].magnitude_type
         events[1].magnitudes = []
+        events[1].preferred_magnitude_id = None
         events[2].origins = []
+        events[2].preferred_origin_id = None
         with NamedTemporaryFile(suffix='.csv') as ft:
             with self.assertWarns(Warning):
                 events.write(ft.name, 'CSV')
@@ -103,6 +106,16 @@ class CSVTestCase(unittest.TestCase):
             events3 = read_events(fname)
             self.assertEqual(events3[0]._format, 'CSV')
             self.assertEqual(str(events3), str(events2))
+
+    def test_custom_fmt(self):
+        events = read_events()
+        with NamedTemporaryFile(suffix='.csz') as ft:
+            fname = ft.name
+            events.write(fname, 'CSV', fields='{lat:.5f} {lon:.5f}')
+            self.assertFalse(obspycsv._is_csv(fname))
+            data = np.genfromtxt(fname, names=True, delimiter=',')
+            self.assertEqual(len(data), 3)
+            self.assertEqual(len(data[0]), 2)
 
 
 def suite():
