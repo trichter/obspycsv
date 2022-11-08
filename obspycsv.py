@@ -48,10 +48,9 @@ PFIELDS = {
 
 def _is_csv(fname, **kwargs):
     try:
-        read_csv(fname)
+        return read_csv(fname, only_check=True)
     except:
         return False
-    return True
 
 
 def _is_csz(fname, **kwargs):
@@ -59,9 +58,9 @@ def _is_csz(fname, **kwargs):
         import zipfile
         with zipfile.ZipFile(fname) as zipf:
             assert 'events.csv' in zipf.namelist()
+        return True
     except:
         return False
-    return True
 
 
 def _evid(event):
@@ -89,6 +88,10 @@ def read_csz(fname, default=None, check_compression=None):
     :param default: dictionary with default values, at the moment only
          magtype is supported,
          i.e. to set magtypes use `default={'magtype': 'Ml'}`
+    :param check_compression: Has to be set to False, when using
+        ObsPy's read_events() function, otherwise ObsPy will automatically
+        unpack the zip file and reading it with obspycsv will not work.
+        The option is not used by read_csz.
     """
     import zipfile
     with zipfile.ZipFile(fname) as zipf:
@@ -176,7 +179,8 @@ def _write_picks(event, fname, fmt_picks='basic', delimiter=','):
 
 
 def read_csv(fname, skipheader=0, depth_in_km=True, default=None,
-             check_compression=None, **kwargs):
+             check_compression=None, only_check=False,
+             **kwargs):
     """
     Read a CSV file and return ObsPy Catalog
 
@@ -186,6 +190,9 @@ def read_csv(fname, skipheader=0, depth_in_km=True, default=None,
     :param default: dictionary with default values, at the moment only
          magtype is supported,
          i.e. to set magtypes use `default={'magtype': 'Ml'}`
+    :param check_compression: not used by read_csv
+    :param only_check: Only check if the first event could be read with
+        read_csv
     :param **kargs: all other kwargs are passed to csv.DictReader,
         important additional arguments are fieldnames, dialect, delimiter, etc
 
@@ -229,6 +236,10 @@ def read_csv(fname, skipheader=0, depth_in_km=True, default=None,
             id_ = ResourceIdentifier(row['id'].strip()) if 'id' in row else None
             event = Event(magnitudes=magnitudes, origins=[origin], resource_id=id_)
             events.append(event)
+            if only_check:
+                return True
+    if only_check:
+        return True
     return Catalog(events=events)
 
 
