@@ -27,7 +27,7 @@ ENTRY_POINTS = {
     'obspy.plugin.event.CSV': [
         'isFormat = obspycsv:_is_csv',
         'readFormat = obspycsv:read_csv',
-        'writeFormat = obspycsv:write_csv'],
+        'writeFormat = obspycsv:write_csv_default'],
     'obspy.plugin.event.CSZ': [
         'isFormat = obspycsv:_is_csz',
         'readFormat = obspycsv:read_csz',

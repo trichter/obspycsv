@@ -2,11 +2,27 @@
 """
 CSV and CSZ read/write support for ObsPy earthquake catalogs
 
-You have to use the field names
+You can use the following field names to read an external CSV file
 time or year, mon, day, hour, minu, sec
 lat, lon, dep, mag, magtype, id
-(see global FIELDS variable)
+(see also global FIELDS variable and help of read_csv)
+
+Note: This plugin can be easily extended to write and read more event information.
+If you are interessted, please send a PR to the github repository.
+First add write support
+  1. add 'extended' or similar key to FIELDS dict, e.g. as a start use
+      'extended': (
+          '{time!s:.25} {lat:.6f} {lat_err:.6f} {lon:.6f} {lon_err:.6f} '
+          '{dep:.3f} {dep_err:.3f} {mag:.2f} {mag_err:.2f} {magtype} {id}'
+          ).split()
+  2. Implement writing functionality in write_csv by adding the new properties
+     to the dict d. Missing values have to be handled.
+  3. Implement reading functionality for the new properties in read_csv.
+  4. Write some tests testing all new properties. Check that an event with
+     all new properties defined or missing can be written and read again.
+Similar can be done for the picks using PFIELDS, _write_picks, _read_picks
 """
+
 import csv
 from contextlib import contextmanager
 import io
@@ -22,8 +38,12 @@ from obspy.core.event import (
 __version__ = '0.3.1-dev'
 
 DEFAULT = {'magtype': None}
-FIELDS = '{time!s:.25} {lat:.6f} {lon:.6f} {dep:.3f} {mag:.2f} {magtype} {id}'.split()
-PFIELDS = '{seedid} {phase} {time:.5f} {weight:.3f}'.split()
+FIELDS = {
+    'basic': '{time!s:.25} {lat:.6f} {lon:.6f} {dep:.3f} {mag:.2f} {magtype} {id}'.split()
+    }
+PFIELDS = {
+    'basic': '{seedid} {phase} {time:.5f} {weight:.3f}'.split()
+    }
 
 
 def _is_csv(fname, **kwargs):
@@ -84,7 +104,7 @@ def read_csz(fname, default=None, check_compression=None):
     return events
 
 
-def write_csz(events, fname, **kwargs):
+def write_csz(events, fname, fmt='basic', fmt_picks='basic', **kwargs):
     """
     Write ObsPy catalog to CSZ file
 
@@ -101,7 +121,7 @@ def write_csz(events, fname, **kwargs):
         kwargs['compression'] = zipfile.ZIP_DEFLATED
     with zipfile.ZipFile(fname, mode='w', **kwargs) as zipf:
         with io.StringIO() as f:
-            write_csv(events, f)
+            write_csv(events, f, fmt=fmt)
             zipf.writestr('events.csv', f.getvalue())
         for event in events:
             if len(event.picks) == 0:
@@ -135,8 +155,8 @@ def _read_picks(event, fname):
     event.origins[0].arrivals = arrivals
 
 
-def _write_picks(event, fname, delimiter=','):
-    fmtstr = delimiter.join(PFIELDS)
+def _write_picks(event, fname, fmt_picks='basic', delimiter=','):
+    fmtstr = delimiter.join(PFIELDS[fmt_picks])
     fieldnames = [
         fn for _, fn, _, _ in Formatter().parse(fmtstr) if fn is not None]
     origin = _origin(event)
@@ -212,7 +232,17 @@ def read_csv(fname, skipheader=0, depth_in_km=True, default=None,
     return Catalog(events=events)
 
 
-def write_csv(events, fname, depth_in_km=True, delimiter=','):
+def write_csv_default(events, fname, fmt='basic'):
+    """
+    Write ObsPy catalog to CSV file
+
+    :param events: catalog or list of events
+    :param fname: file name
+    """
+    return write_csv(events, fname, fmt=fmt)
+
+
+def write_csv(events, fname, fmt='basic', depth_in_km=True, delimiter=','):
     """
     Write ObsPy catalog to CSV file
 
@@ -221,7 +251,7 @@ def write_csv(events, fname, depth_in_km=True, delimiter=','):
     :param depth_in_km: write depth in units of kilometer (default: True) or meter
     :param delimiter: defaults to `','`
     """
-    fmtstr = delimiter.join(FIELDS)
+    fmtstr = delimiter.join(FIELDS[fmt])
     fieldnames = [
         fn for _, fn, _, _ in Formatter().parse(fmtstr) if fn is not None]
     with _open(fname, 'w') as f:
