@@ -8,9 +8,8 @@ lat, lon, dep, mag, magtype, id
 (see also global FIELDS variable and help of read_csv)
 
 Note: This plugin can be easily extended to write and read more event information.
-If you are interessted, please send a PR to the github repository.
-First add write support
-  1. add 'extended' or similar key to FIELDS dict, e.g. as a start use
+If you are interested, please send a PR to the github repository.
+  1. Add 'extended' or similar key to FIELDS dict, e.g. as a start use
       'extended': (
           '{time!s:.25} {lat:.6f} {lat_err:.6f} {lon:.6f} {lon_err:.6f} '
           '{dep:.3f} {dep_err:.3f} {mag:.2f} {mag_err:.2f} {magtype} {id}'
@@ -29,6 +28,7 @@ from contextlib import contextmanager
 import io
 import math
 from string import Formatter
+import zipfile
 
 from obspy import UTCDateTime as UTC
 from obspy.core.event import (
@@ -45,18 +45,19 @@ FIELDS = {
 PFIELDS = {
     'basic': '{seedid} {phase} {time:.5f} {weight:.3f}'
     }
+CSZ_COMMENT = f'CSZ format v{__version__} obspy_no_uncompress'.encode('utf-8')
 
 
 def _is_csv(fname, **kwargs):
     try:
-        return read_csv(fname, only_check=True)
+        return read_csv(fname, format_check=True)
     except:
         return False
 
 
 def _is_csz(fname, **kwargs):
     try:
-        import zipfile
+        assert zipfile.is_zipfile(fname)
         with zipfile.ZipFile(fname) as zipf:
             assert 'events.csv' in zipf.namelist()
         return True
@@ -74,7 +75,7 @@ def _origin(event):
 
 @contextmanager
 def _open(filein, *args, **kwargs):
-    "Accept both files or file names"""
+    """Accept both files or file names"""
     if isinstance(filein, str):  # filename
         with open(filein, *args, **kwargs) as f:
             yield f
@@ -94,7 +95,6 @@ def read_csz(fname, default=None, check_compression=None):
         unpack the zip file and reading it with obspycsv will not work.
         The option is not used by read_csz.
     """
-    import zipfile
     with zipfile.ZipFile(fname) as zipf:
         with io.TextIOWrapper(zipf.open('events.csv'), encoding='utf-8') as f:
             events = read_csv(f, default=default)
@@ -120,10 +120,10 @@ def write_csz(events, fname, fields='basic', fields_picks='basic', **kwargs):
     events.write('CSZ', compression=True, compresslevel=9)
     ```
     """
-    import zipfile
     if kwargs.get('compression') is True:  # allow True as value for compression
         kwargs['compression'] = zipfile.ZIP_DEFLATED
     with zipfile.ZipFile(fname, mode='w', **kwargs) as zipf:
+        zipf.comment = CSZ_COMMENT
         with io.StringIO() as f:
             write_csv(events, f, fields=fields)
             zipf.writestr('events.csv', f.getvalue())
@@ -183,7 +183,7 @@ def _write_picks(event, fname, fields_picks='basic', delimiter=','):
 
 
 def read_csv(fname, skipheader=0, depth_in_km=True, default=None,
-             check_compression=None, only_check=False,
+             check_compression=None, format_check=False,
              **kwargs):
     """
     Read a CSV file and return ObsPy Catalog
@@ -195,8 +195,7 @@ def read_csv(fname, skipheader=0, depth_in_km=True, default=None,
          magtype is supported,
          i.e. to set magtypes use `default={'magtype': 'Ml'}`
     :param check_compression: not used by read_csv
-    :param only_check: Only check if the first event could be read with
-        read_csv
+    :param format_check: Read only the first event
     :param **kargs: all other kwargs are passed to csv.DictReader,
         important additional arguments are fieldnames, dialect, delimiter, etc
 
@@ -240,10 +239,11 @@ def read_csv(fname, skipheader=0, depth_in_km=True, default=None,
             id_ = ResourceIdentifier(row['id'].strip()) if 'id' in row else None
             event = Event(magnitudes=magnitudes, origins=[origin], resource_id=id_)
             events.append(event)
-            if only_check:
+            if format_check:
                 return True
-    if only_check:
-        return True
+    if format_check:
+        # empty file will return an empty catalog, but it is not detected as CSV file
+        return False
     return Catalog(events=events)
 
 

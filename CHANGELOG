@@ -1,6 +1,7 @@
 v0.4.0:
   * allow to write only default csv files with Stream.write()
   * allow custom fields for writing
+  * CSZ files can be read with read_events without specifying check_compression=False for Obspy>=1.4
 v0.3.0:
   * add CSZ format to read/write a catalog with picks
   * set higher precision

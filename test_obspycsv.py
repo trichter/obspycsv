@@ -4,9 +4,11 @@ from tempfile import gettempdir
 import unittest
 
 import numpy as np
+import obspy
 from obspy import read_events
 from obspy.core.util import NamedTemporaryFile
 import obspycsv
+from packaging import version
 
 
 class CSVTestCase(unittest.TestCase):
@@ -57,7 +59,7 @@ class CSVTestCase(unittest.TestCase):
         self.assertEqual(events2[1].origins[0].time,
                           events[1].origins[0].time)
 
-    def test_io_csz(self):
+    def test_io_csz(self, check_compression=False):
         events = read_events('/path/to/example.pha')
         tempdir = gettempdir()
         fname = os.path.join(tempdir, 'obbspycsv_testfile.csz')
@@ -66,7 +68,7 @@ class CSVTestCase(unittest.TestCase):
             def _test_write_read(events, **kw):
                 events.write(fname, 'CSZ', **kw)
                 self.assertTrue(obspycsv._is_csz(fname))
-                events2 = read_events(fname, check_compression=False)
+                events2 = read_events(fname, check_compression=check_compression)
                 self.assertEqual(len(events2), len(events))
                 for ev1, ev2 in zip(events, events2):
                     self.assertEqual(len(ev2.origins[0].arrivals),
@@ -86,26 +88,22 @@ class CSVTestCase(unittest.TestCase):
             with self.assertWarns(Warning):
                 events.write(fname, 'CSZ')
             self.assertTrue(obspycsv._is_csz(fname))
-            events2 = read_events(fname, check_compression=False)
+            events2 = read_events(fname, check_compression=check_compression)
             self.assertEqual(len(events2), 1)
             self.assertEqual(len(events2[0].origins[0].arrivals),
                              len(events[0].origins[0].arrivals))
             self.assertEqual(len(events2[0].picks),
                              len(events[0].picks))
 
-    def test_io_csz_without_picks(self):
+    def test_io_csz_without_picks(self, check_compression=False):
         events = read_events()
         with NamedTemporaryFile(suffix='.csz') as ft:
             fname = ft.name
             events.write(fname, 'CSZ')
             self.assertTrue(obspycsv._is_csz(fname))
-            events2 = read_events(fname, check_compression=False)
+            events2 = read_events(fname, check_compression=check_compression)
             self.assertEqual(events2[0]._format, 'CSZ')
             self.assertEqual(len(events2), len(events))
-            # the zip archive itself gets recognized by ObsPy as CSV file
-            events3 = read_events(fname)
-            self.assertEqual(events3[0]._format, 'CSV')
-            self.assertEqual(str(events3), str(events2))
 
     def test_custom_fmt(self):
         events = read_events()
@@ -116,6 +114,12 @@ class CSVTestCase(unittest.TestCase):
             data = np.genfromtxt(fname, names=True, delimiter=',')
             self.assertEqual(len(data), 3)
             self.assertEqual(len(data[0]), 2)
+
+    @unittest.skipIf(version.parse(obspy.__version__) < version.parse('1.4'),
+                     'only supported for ObsPy>=1.4')
+    def test_io_csz_without_check_compression(self):
+        self.test_io_csz(check_compression=True)
+        self.test_io_csz_without_picks(check_compression=True)
 
 
 def suite():
