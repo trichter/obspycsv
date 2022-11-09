@@ -121,6 +121,12 @@ class CSVTestCase(unittest.TestCase):
         self.test_io_csz(check_compression=True)
         self.test_io_csz_without_picks(check_compression=True)
 
+    def test_empty(self):
+        self.assertFalse(obspycsv._is_csv(b''))
+        self.assertFalse(obspycsv._is_csz(b''))
+        empty_cat = obspycsv.read_csv(b'')
+        self.assertEqual(len(empty_cat), 0)
+
 
 def suite():
     return unittest.makeSuite(CSVTestCase, 'test')
