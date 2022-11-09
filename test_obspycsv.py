@@ -1,4 +1,4 @@
-# Copyright 2013-2016 Tom Eulenfeld, MIT license
+# Copyright 2022 Tom Eulenfeld, MIT license
 import os.path
 from tempfile import gettempdir
 import unittest
@@ -11,9 +11,9 @@ import obspycsv
 from packaging import version
 
 
-class CSVTestCase(unittest.TestCase):
+class CSVCSZTestCase(unittest.TestCase):
 
-    def test_io(self):
+    def test_csv(self):
         events = read_events()
         with NamedTemporaryFile(suffix='.csv') as ft:
             events.write(ft.name, 'CSV')
@@ -22,7 +22,7 @@ class CSVTestCase(unittest.TestCase):
         self.assertEqual(events2[0].origins[0].time,
                           events[0].origins[0].time)
 
-    def test_reading_external_catalog(self):
+    def test_csv_reading_external_catalog(self):
         external = (
             'Year, Month, Day, Hour, Minute, Seconds, code, Lat, Lon, Depth, Station_count, time_residual_RMS, Magnitude, etc\n'
             '2023, 05, 06, 19, 55, 01.3, LI, 10.1942, 124.8300, 50.47, 111, 0.0, 0.2, 42, 0.0, 0.0176, 0.0127, 0.02, 0.3, 2023abcde'
@@ -42,7 +42,7 @@ class CSVTestCase(unittest.TestCase):
         self.assertEqual(str(events2[0].origins[0].time), '2023-05-06T19:55:01.300000Z')
         self.assertEqual(len(events2[0].magnitudes), 0)
 
-    def test_incomplete_catalogs(self):
+    def test_csv_incomplete_catalog(self):
         events = read_events()
         del events[0].magnitudes[0].magnitude_type
         events[1].magnitudes = []
@@ -59,7 +59,22 @@ class CSVTestCase(unittest.TestCase):
         self.assertEqual(events2[1].origins[0].time,
                           events[1].origins[0].time)
 
-    def test_io_csz(self, check_compression=False):
+    def test_csv_custom_fmt(self):
+        events = read_events()
+        with NamedTemporaryFile(suffix='.csv') as ft:
+            fname = ft.name
+            events.write(fname, 'CSV', fields='{lat:.5f} {lon:.5f}')
+            self.assertFalse(obspycsv._is_csv(fname))
+            data = np.genfromtxt(fname, names=True, delimiter=',')
+            self.assertEqual(len(data), 3)
+            self.assertEqual(len(data[0]), 2)
+
+    def test_csv_empty(self):
+        self.assertFalse(obspycsv._is_csv(b''))
+        empty_cat = obspycsv.read_csv(b'')
+        self.assertEqual(len(empty_cat), 0)
+
+    def test_csz(self, check_compression=False):
         events = read_events('/path/to/example.pha')
         tempdir = gettempdir()
         fname = os.path.join(tempdir, 'obbspycsv_testfile.csz')
@@ -95,7 +110,7 @@ class CSVTestCase(unittest.TestCase):
             self.assertEqual(len(events2[0].picks),
                              len(events[0].picks))
 
-    def test_io_csz_without_picks(self, check_compression=False):
+    def test_csz_without_picks(self, check_compression=False):
         events = read_events()
         with NamedTemporaryFile(suffix='.csz') as ft:
             fname = ft.name
@@ -105,31 +120,15 @@ class CSVTestCase(unittest.TestCase):
             self.assertEqual(events2[0]._format, 'CSZ')
             self.assertEqual(len(events2), len(events))
 
-    def test_custom_fmt(self):
-        events = read_events()
-        with NamedTemporaryFile(suffix='.csz') as ft:
-            fname = ft.name
-            events.write(fname, 'CSV', fields='{lat:.5f} {lon:.5f}')
-            self.assertFalse(obspycsv._is_csv(fname))
-            data = np.genfromtxt(fname, names=True, delimiter=',')
-            self.assertEqual(len(data), 3)
-            self.assertEqual(len(data[0]), 2)
-
     @unittest.skipIf(version.parse(obspy.__version__) < version.parse('1.4'),
                      'only supported for ObsPy>=1.4')
-    def test_io_csz_without_check_compression(self):
-        self.test_io_csz(check_compression=True)
-        self.test_io_csz_without_picks(check_compression=True)
-
-    def test_empty(self):
-        self.assertFalse(obspycsv._is_csv(b''))
-        self.assertFalse(obspycsv._is_csz(b''))
-        empty_cat = obspycsv.read_csv(b'')
-        self.assertEqual(len(empty_cat), 0)
+    def test_csz_without_check_compression_parameters(self):
+        self.test_csz(check_compression=True)
+        self.test_csz_without_picks(check_compression=True)
 
 
 def suite():
-    return unittest.makeSuite(CSVTestCase, 'test')
+    return unittest.makeSuite(CSVCSZTestCase, 'test')
 
 
 if __name__ == '__main__':
