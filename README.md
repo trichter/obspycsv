@@ -57,8 +57,7 @@ events = read_events('external.csv', 'CSV', skipheader=1, fieldnames=fields)
 ## Usage CSZ
 
 CSZ format can be used to store a catalog with picks in a set of csv files zipped into a single file.
-It works similar to NumPy's npz format. Because ObsPy automatically unpacks zip archives,
-to read files with ObsPy use the option `check_compression=False` or use the `read_csz` function directly.
+It works similar to NumPy's npz format.
 Compression may be used with `compression` and `compresslevel` parameters
 (see [zipfile doc](https://docs.python.org/library/zipfile.html#zipfile.ZipFile)).
 
@@ -71,7 +70,7 @@ Compression may be used with `compression` and `compresslevel` parameters
 >>> print(len(events[0].picks))
 2
 >>> events.write('catalog.csz', 'CSZ')
->>> events2 = read_events('catalog.csz', check_compression=False)
+>>> events2 = read_events('catalog.csz')  # add check_compression=False for ObsPy version < 1.4
 >>> print(events2)
 2 Event(s) in Catalog:
 2025-05-14T14:35:35.510000Z | +40.225,  +10.450 | 3.5  None
