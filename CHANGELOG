@@ -1,3 +1,5 @@
+v0.5.0:
+  * add load_csv and events2array functions
 v0.4.0:
   * allow to write only default csv files with Stream.write()
   * allow custom fields for writing

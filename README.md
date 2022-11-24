@@ -79,6 +79,41 @@ Compression may be used with `compression` and `compresslevel` parameters
 2
 ```
 
+## Load CSV/CSZ file into numpy array
+
+For plotting, e.t.c, it is useful to represent the event paramters with a numpy
+array.
+The `load_csv` function can be used to load a CSV or CSZ file as a numpy array.
+
+```py
+>>> from obspycsv import load_csv
+>>> t = load_csv('catalog.csz')
+>>> print(t)
+[('2012-04-04T14:21:42.300', 41.818, 79.689,  1. , 4.4, 'mb', '20120404_0000041')
+ ('2012-04-04T14:18:37.000', 39.342, 41.044, 14.4, 4.3, 'ML', '20120404_0000038')
+ ('2012-04-04T14:08:46.000', 38.017, 37.736,  7. , 3. , 'ML', '20120404_0000039')]
+ >>> print(t['mag')
+ [4.4 4.3 3. ]
+```
+
+## Convert ObsPy catalog into numpy array
+The `events2array` function  can be used to convert an ObsPy catalog to a numpy array.
+Code example creating event plots:
+
+```py
+import matplotlib.pyplot as plt
+from obspy import read_events
+from obspycsv import events2array
+
+events = read_events()
+t = events2array(events)
+plt.subplot(121)
+plt.scatter(t['lon'], t['lat'], 4*t['mag']**2)
+plt.subplot(122)
+plt.scatter(t['time'], t['mag'], 4*t['mag']**2)
+plt.show()
+```
+
 ## Miscellaneous
 
 Plese submit an issue if you want to see support for other properties.

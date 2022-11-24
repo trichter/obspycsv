@@ -126,6 +126,46 @@ class CSVCSZTestCase(unittest.TestCase):
         self.test_csz(check_compression=True)
         self.test_csz_without_picks(check_compression=True)
 
+    def test_load_csv(self):
+        events = read_events()
+        with NamedTemporaryFile(suffix='.csv') as ft:
+            events.write(ft.name, 'CSV')
+            t = obspycsv.load_csv(ft.name)
+        self.assertEqual(t['mag'][0], 4.4)
+        with NamedTemporaryFile(suffix='.csz') as ft:
+            events.write(ft.name, 'CSZ')
+            t = obspycsv.load_csv(ft.name)
+        self.assertEqual(t['mag'][0], 4.4)
+        t = obspycsv.events2array(events)
+        self.assertEqual(t['mag'][0], 4.4)
+
+    def test_load_csv_incomplete_catalog(self):
+        events = read_events()
+        del events[0].magnitudes[0].magnitude_type
+        events[1].magnitudes = []
+        events[1].preferred_magnitude_id = None
+        events[2].origins = []
+        events[2].preferred_origin_id = None
+        with NamedTemporaryFile(suffix='.csv') as ft:
+            with self.assertWarns(Warning):
+                events.write(ft.name, 'CSV')
+            t = obspycsv.load_csv(ft.name)
+        self.assertEqual(len(t), 2)
+        self.assertTrue(np.isnan(t['mag'][1]))
+
+    def test_load_csv_some_cols(self):
+        events = read_events()
+        with NamedTemporaryFile(suffix='.csv') as ft:
+            fields = '{lat:.6f} {lon:.6f} {mag:.2f}'
+            events.write(ft.name, 'CSV', fields=fields)
+            t = obspycsv.load_csv(ft.name)
+        self.assertEqual(t['mag'][0], 4.4)
+
+    def test_events2array(self):
+        events = read_events()
+        t = obspycsv.events2array(events)
+        self.assertEqual(t['mag'][0], 4.4)
+
 
 def suite():
     return unittest.makeSuite(CSVCSZTestCase, 'test')

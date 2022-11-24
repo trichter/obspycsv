@@ -30,6 +30,7 @@ import math
 from string import Formatter
 import zipfile
 
+import numpy as np
 from obspy import UTCDateTime as UTC
 from obspy.core.event import (
     Catalog, Event, Origin, Magnitude, Pick, WaveformStreamID, Arrival,
@@ -46,6 +47,15 @@ PFIELDS = {
     'basic': '{seedid} {phase} {time:.5f} {weight:.3f}'
     }
 CSZ_COMMENT = f'CSZ format v{__version__} obspy_no_uncompress'.encode('utf-8')
+DTYPE = {  # for load_csv
+    'time': 'datetime64[ms]',
+    'lat': float,
+    'lon': float,
+    'dep': float,
+    'mag': float,
+    'magtype': 'U10',
+    'id': 'U50'
+    }
 
 
 def _is_csv(fname, **kwargs):
@@ -301,3 +311,34 @@ def write_csv(events, fname, fields='basic', depth_in_km=True, delimiter=','):
                  'magtype': magtype,
                  'id': evid}
             f.write(fmtstr.format(**d) + '\n')
+
+
+def load_csv(fname, only=None, names=None, **kw):
+    """
+    Load CSV or CSZ file into numpy array
+    """
+    if isinstance(fname, str) and zipfile.is_zipfile(fname):
+        with zipfile.ZipFile(fname) as zipf:
+            with io.TextIOWrapper(
+                    zipf.open('events.csv'), encoding='utf-8') as f:
+                return load_csv(f)
+    with _open(fname) as f:
+        if names is None:
+            names = f.readline().strip().split(',')
+        dtype = [(n, DTYPE[n]) for n in names if n in DTYPE]
+        usecols = [i for i, n in enumerate(names)
+                   if n in DTYPE and (only is None or n in only)]
+        kw.setdefault('usecols', usecols)
+        kw.setdefault('dtype', dtype)
+        kw.setdefault('delimiter', ',')
+        return np.loadtxt(f, **kw)
+
+
+def events2array(events, **kw):
+    """
+    Convert ObsPy catalog to numpy array
+    """
+    with io.StringIO() as f:
+        write_csv(events, f)
+        f.seek(0)
+        return load_csv(f, **kw)
