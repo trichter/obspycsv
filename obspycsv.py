@@ -59,7 +59,8 @@ def _is_csz(fname, **kwargs):
     try:
         assert zipfile.is_zipfile(fname)
         with zipfile.ZipFile(fname) as zipf:
-            assert 'events.csv' in zipf.namelist()
+            assert (zipf.comment.startswith(b'CSZ') and
+                    zipf.comment.endswith(b'obspy_no_uncompress'))
         return True
     except:
         return False
