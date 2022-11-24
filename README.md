@@ -48,8 +48,8 @@ For external csv files, the format `'CSV'` has to be explicitly specified.
 >>> cat external.csv
 Year, Month, Day, Hour, Minute, Seconds, code, Lat, Lon, Depth, Station_count, time_residual_RMS, Magnitude, etc
 2023, 05, 06, 19, 55, 01.3, LI, 10.1942, 124.8300, 50.47, 111, 0.0, 0.2, 42, 0.0, 0.0176, 0.0127, 0.02, 0.3, 2023abcde
->>> fields = 'year mon day hour minu sec _ lat lon dep _ _ mag _ _ _ _ _ _ id'.split()
-events = read_events('external.csv', 'CSV', skipheader=1, fieldnames=fields)
+>>> names = 'year mon day hour minu sec _ lat lon dep _ _ mag _ _ _ _ _ _ id'.split()
+events = read_events('external.csv', 'CSV', skipheader=1, names=names)
 1 Event(s) in Catalog:
 2023-05-06T19:55:01.300000Z | +10.194, +124.830 | 0.2  None
 ```
