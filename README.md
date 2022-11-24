@@ -83,7 +83,7 @@ Compression may be used with `compression` and `compresslevel` parameters
 
 For plotting, e.t.c, it is useful to represent the event paramters with a numpy
 array.
-The `load_csv` function can be used to load a CSV or CSZ file as a numpy array.
+The `load_csv` function can be used to load a CSV or CSZ file as numpy array.
 
 ```py
 >>> from obspycsv import load_csv
@@ -97,7 +97,8 @@ The `load_csv` function can be used to load a CSV or CSZ file as a numpy array.
 ```
 
 ## Convert ObsPy catalog into numpy array
-The `events2array` function  can be used to convert an ObsPy catalog to a numpy array.
+
+The `events2array` function  can be used to convert an ObsPy catalog to numpy array.
 Code example creating event plots:
 
 ```py
