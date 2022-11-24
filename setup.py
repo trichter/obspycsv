@@ -19,7 +19,6 @@ version = find_version('obspycsv.py')
 with open('README.md') as f:
     README = f.read()
 DESCRIPTION = README.split('\n')[2]
-LONG_DESCRIPTION = '\n'.join(README.split('\n')[10:])
 
 ENTRY_POINTS = {
     'obspy.plugin.event': ['CSV = obspycsv',
@@ -45,7 +44,6 @@ CLASSIFIERS = [
 setup(name='obspycsv',
       version=version,
       description=DESCRIPTION,
-      long_description=LONG_DESCRIPTION,
       url='https://github.com/trichter/obspycsv',
       author='Tom Eulenfeld',
       license='MIT',
