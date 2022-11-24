@@ -27,14 +27,14 @@ class CSVCSZTestCase(unittest.TestCase):
             'Year, Month, Day, Hour, Minute, Seconds, code, Lat, Lon, Depth, Station_count, time_residual_RMS, Magnitude, etc\n'
             '2023, 05, 06, 19, 55, 01.3, LI, 10.1942, 124.8300, 50.47, 111, 0.0, 0.2, 42, 0.0, 0.0176, 0.0127, 0.02, 0.3, 2023abcde'
             )
-        fields = 'year mon day hour minu sec _ lat lon dep _ _ mag _ _ _ _ _ _ id'.split()
-        incomplete_fields = 'year mon day hour minu sec _ lat lon dep'.split()
+        fields = 'year mon day hour minu sec _ lat lon dep _ _ mag _ _ _ _ _ _ id'
+        incomplete_fields = 'year mon day hour minu sec _ lat lon dep'
         with NamedTemporaryFile(suffix='.csv') as ft:
             with open(ft.name, 'w') as f:
                 f.write(external)
             self.assertFalse(obspycsv._is_csv(ft.name))
-            events = read_events(ft.name, 'CSV', skipheader=1, fieldnames=fields)
-            events2 = read_events(ft.name, 'CSV', skipheader=1, fieldnames=incomplete_fields)
+            events = read_events(ft.name, 'CSV', skipheader=1, names=fields)
+            events2 = read_events(ft.name, 'CSV', skipheader=1, names=incomplete_fields)
         self.assertEqual(len(events), 1)
         self.assertEqual(str(events[0].origins[0].time), '2023-05-06T19:55:01.300000Z')
         self.assertEqual(len(events[0].magnitudes), 1)
@@ -159,7 +159,15 @@ class CSVCSZTestCase(unittest.TestCase):
             fields = '{lat:.6f} {lon:.6f} {mag:.2f}'
             events.write(ft.name, 'CSV', fields=fields)
             t = obspycsv.load_csv(ft.name)
+            t2 = obspycsv.load_csv(ft.name, only=['mag'])
+            t3 = obspycsv.load_csv(ft.name, skipheader=1, names={2: 'mag'})
         self.assertEqual(t['mag'][0], 4.4)
+        self.assertEqual(t2['mag'][0], 4.4)
+        self.assertEqual(t3['mag'][0], 4.4)
+        self.assertTrue('mag' in t2.dtype.names)
+        self.assertTrue('lat' not in t2.dtype.names)
+        self.assertTrue('mag' in t3.dtype.names)
+        self.assertTrue('lat' not in t3.dtype.names)
 
     def test_events2array(self):
         events = read_events()

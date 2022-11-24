@@ -39,7 +39,9 @@ from obspy.core.event import (
 
 __version__ = '0.5.1-dev'
 
+# for reading
 DEFAULT = {'magtype': None}
+# for writing
 FIELDS = {
     'basic': '{time!s:.25} {lat:.6f} {lon:.6f} {dep:.3f} {mag:.2f} {magtype} {id}'
     }
@@ -47,7 +49,8 @@ PFIELDS = {
     'basic': '{seedid} {phase} {time:.5f} {weight:.3f}'
     }
 CSZ_COMMENT = f'CSZ format v{__version__} obspy_no_uncompress'.encode('utf-8')
-DTYPE = {  # for load_csv
+# for load_csv
+DTYPE = {
     'time': 'datetime64[ms]',
     'lat': float,
     'lon': float,
@@ -193,7 +196,15 @@ def _write_picks(event, fname, fields_picks='basic', delimiter=','):
             f.write(fmtstr.format(**d) + '\n')
 
 
-def read_csv(fname, skipheader=0, depth_in_km=True, default=None,
+def _names_sequence(names):
+    if isinstance(names, dict):
+        names = [names.get(i, '_') for i in range(max(names.keys())+1)]
+    elif ' ' in names:
+        names = names.split()
+    return names
+
+
+def read_csv(fname, skipheader=0, depth_in_km=True, default=None, names=None,
              check_compression=None, format_check=False,
              **kwargs):
     """
@@ -205,6 +216,8 @@ def read_csv(fname, skipheader=0, depth_in_km=True, default=None,
     :param default: dictionary with default values, at the moment only
          magtype is supported,
          i.e. to set magtypes use `default={'magtype': 'Ml'}`
+    :param names: determined automatically from header line of file,
+        otherwise can be specified as string, sequence or dict
     :param check_compression: not used by read_csv
     :param format_check: Read only the first event
     :param **kargs: all other kwargs are passed to csv.DictReader,
@@ -214,15 +227,17 @@ def read_csv(fname, skipheader=0, depth_in_km=True, default=None,
     Example reading an external csv file:
 
         from obspy import read_events
-        fields = 'year mon day hour minu sec _ lat lon dep _ _ mag _ _ _ _ _ _ id'.split()
-        catalog = read_events('external.csv', 'CSV', skipheader=1, fieldnames=fields)
+        names = 'year mon day hour minu sec _ lat lon dep _ _ mag _ _ _ _ _ _ id'
+        catalog = read_events('external.csv', 'CSV', skipheader=1, names=names)
     """
     if default is None:
         default= DEFAULT
     events = []
     with _open(fname) as f:
         for _ in range(skipheader):
-            next(f)
+            f.readline()
+        if names is not None:
+            kwargs.setdefault('fieldnames', _names_sequence(names))
         reader = csv.DictReader(f, **kwargs)
         for row in reader:
             if 'time' in row:
@@ -313,9 +328,14 @@ def write_csv(events, fname, fields='basic', depth_in_km=True, delimiter=','):
             f.write(fmtstr.format(**d) + '\n')
 
 
-def load_csv(fname, only=None, names=None, **kw):
+def load_csv(fname, skipheader=0, only=None, names=None, **kw):
     """
     Load CSV or CSZ file into numpy array
+
+    :param only: sequence, read only columns speified by name
+    :param skipheader, names: see `read_csv`
+    :param **kw: Other kwargs are passed to `np.loadtxt`
+
     """
     if isinstance(fname, str) and zipfile.is_zipfile(fname):
         with zipfile.ZipFile(fname) as zipf:
@@ -323,11 +343,15 @@ def load_csv(fname, only=None, names=None, **kw):
                     zipf.open('events.csv'), encoding='utf-8') as f:
                 return load_csv(f)
     with _open(fname) as f:
+        for _ in range(skipheader):
+            f.readline()
         if names is None:
             names = f.readline().strip().split(',')
-        dtype = [(n, DTYPE[n]) for n in names if n in DTYPE]
-        usecols = [i for i, n in enumerate(names)
-                   if n in DTYPE and (only is None or n in only)]
+        names = _names_sequence(names)
+        dtype = [(n, DTYPE[n]) for n in names if n in DTYPE and
+                        (only is None or n in only)]
+        usecols = [i for i, n in enumerate(names) if n in DTYPE and
+                        (only is None or n in only)]
         kw.setdefault('usecols', usecols)
         kw.setdefault('dtype', dtype)
         kw.setdefault('delimiter', ',')
@@ -337,6 +361,9 @@ def load_csv(fname, only=None, names=None, **kw):
 def events2array(events, **kw):
     """
     Convert ObsPy catalog to numpy array
+
+    All kwargs are passed to `load_csv`, e.g. use `only=('lat', 'lon', 'mag')`
+    to get an array with lat, lon, mag parameters.
     """
     with io.StringIO() as f:
         write_csv(events, f)
