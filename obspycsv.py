@@ -257,7 +257,7 @@ def read_csv(fname, skipheader=0, depth_in_km=True, default=None, names=None,
                 try:
                     magtype = row['magtype']
                 except:
-                    magtype = DEFAULT.get('magtype')
+                    magtype = default.get('magtype')
                 else:
                     if magtype.lower() in ('none', 'null', 'nan'):
                         magtype = None

@@ -1,3 +1,5 @@
+v0.6.1:
+  * fix default parameter in read_csv
 v0.6.0:
   * add names parameter to read_csv and skipheader paramter to load_csv (consistency between read_csv and load_csv)
   * names can be specified as string, sequence or dict
