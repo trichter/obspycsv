@@ -18,6 +18,7 @@ Install ObsPy. After that install obspycsv using pip by:
 ## Usage EVENTTXT
 
 ```
+>>> from obspy import read_events
 >>> read_events('https://service.iris.edu/fdsnws/event/1/query?minmagnitude=8.5&format=text')
 7 Event(s) in Catalog:
 2012-04-11T08:38:37.000000Z |  +2.238,  +93.014 | 8.6  MW
@@ -66,7 +67,7 @@ Year, Month, Day, Hour, Minute, Seconds, code, Lat, Lon, Depth, Station_count, t
 >>> names = 'year mon day hour minu sec _ lat lon dep _ _ mag _ _ _ _ _ _ id'.split()
 events = read_events('external.csv', 'CSV', skipheader=1, names=names)
 1 Event(s) in Catalog:
-2023-05-06T19:55:01.300000Z | +10.194, +124.830 | 0.2  None
+2023-05-06T19:55:01.300000Z | +10.194, +124.830 | 0.2
 ```
 
 ## Usage CSZ
