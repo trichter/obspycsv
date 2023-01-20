@@ -1,6 +1,6 @@
 # obspycsv
 
-CSV and CSZ read/write support for ObsPy earthquake catalogs
+CSV and CSZ read/write support, EVENTTXT read support for ObsPy earthquake catalogs
 
 [![build status](https://github.com/trichter/obspycsv/workflows/tests/badge.svg)](https://github.com/trichter/obspycsv/actions)
 [![coverage](https://codecov.io/gh/trichter/obspycsv/branch/master/graph/badge.svg)](https://codecov.io/gh/trichter/obspycsv)
@@ -13,6 +13,21 @@ CSV and CSZ read/write support for ObsPy earthquake catalogs
 Install ObsPy. After that install obspycsv using pip by:
 
     pip install obspycsv
+
+
+## Usage EVENTTXT
+
+```
+>>> read_events('https://service.iris.edu/fdsnws/event/1/query?minmagnitude=8.5&format=text')
+7 Event(s) in Catalog:
+2012-04-11T08:38:37.000000Z |  +2.238,  +93.014 | 8.6  MW
+2011-03-11T05:46:23.000000Z | +38.296, +142.498 | 9.1  MW
+2010-02-27T06:34:13.000000Z | -36.148,  -72.933 | 8.8  MW
+2007-09-12T11:10:26.000000Z |  -4.464, +101.396 | 8.5  MW
+2005-03-28T16:09:35.000000Z |  +2.096,  +97.113 | 8.6  MW
+2004-12-26T00:58:52.000000Z |  +3.413,  +95.901 | 9.0  MW
+1960-05-22T19:11:14.000000Z | -38.170,  -72.570 | 8.5
+```
 
 ## Usage CSV
 
