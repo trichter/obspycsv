@@ -1,4 +1,6 @@
-v0.6.1:
+v0.7.0:
+  * add basic read support for EVENTTXT format (FDSNWS specification)
+  * use empty string instead of nan/None for missing values
   * fix default parameter in read_csv
 v0.6.0:
   * add names parameter to read_csv and skipheader paramter to load_csv (consistency between read_csv and load_csv)

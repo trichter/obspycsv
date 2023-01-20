@@ -22,7 +22,8 @@ DESCRIPTION = README.split('\n')[2]
 
 ENTRY_POINTS = {
     'obspy.plugin.event': ['CSV = obspycsv',
-                           'CSZ = obspycsv'],
+                           'CSZ = obspycsv',
+                           'EVENTTXT = obspycsv'],
     'obspy.plugin.event.CSV': [
         'isFormat = obspycsv:_is_csv',
         'readFormat = obspycsv:read_csv',
@@ -30,7 +31,11 @@ ENTRY_POINTS = {
     'obspy.plugin.event.CSZ': [
         'isFormat = obspycsv:_is_csz',
         'readFormat = obspycsv:read_csz',
-        'writeFormat = obspycsv:write_csz']}
+        'writeFormat = obspycsv:write_csz'],
+    'obspy.plugin.event.EVENTTXT': [
+        'isFormat = obspycsv:_is_eventtxt',
+        'readFormat = obspycsv:read_eventtxt']
+    }
 
 CLASSIFIERS = [
     'Environment :: Console',

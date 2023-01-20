@@ -40,7 +40,7 @@ from obspy.core.event import (
 __version__ = '0.6.0'
 
 # for reading
-DEFAULT = {'magtype': None}
+DEFAULT = {'magtype': ''}
 # for writing
 FIELDS = {
     'basic': '{time!s:.25} {lat:.6f} {lon:.6f} {dep:.3f} {mag:.2f} {magtype} {id}'
@@ -60,10 +60,20 @@ DTYPE = {
     'id': 'U50'
     }
 
+#EventID | Time | Latitude | Longitude | Depth/km | Author | Catalog | Contributor | ContributorID | MagType | Magnitude | MagAuthor | EventLocationName
+NAMES_EVENTTXT = 'id time lat lon dep _ _ _ _ magtype mag _ _'
+
 
 def _is_csv(fname, **kwargs):
     try:
         return read_csv(fname, format_check=True)
+    except:
+        return False
+
+
+def _is_eventtxt(fname, **kwargs):
+    try:
+        return read_eventtxt(fname, format_check=True)
     except:
         return False
 
@@ -204,6 +214,12 @@ def _names_sequence(names):
     return names
 
 
+def read_eventtxt(fname, default=None, format_check=False):
+    return read_csv(fname,
+                    skipheader=1, names=NAMES_EVENTTXT, delimiter='|',
+                    default=default, format_check=format_check)
+
+
 def read_csv(fname, skipheader=0, depth_in_km=True, default=None, names=None,
              check_compression=None, format_check=False,
              **kwargs):
@@ -256,11 +272,10 @@ def read_csv(fname, skipheader=0, depth_in_km=True, default=None, names=None,
             else:
                 try:
                     magtype = row['magtype']
+                    if magtype.lower() in ('', 'none', 'null', 'nan'):
+                        raise
                 except:
                     magtype = default.get('magtype')
-                else:
-                    if magtype.lower() in ('none', 'null', 'nan'):
-                        magtype = None
                 magnitudes = [Magnitude(mag=mag, magnitude_type=magtype)]
             id_ = ResourceIdentifier(row['id'].strip()) if 'id' in row else None
             event = Event(magnitudes=magnitudes, origins=[origin], resource_id=id_)
@@ -314,10 +329,10 @@ def write_csv(events, fname, fields='basic', depth_in_km=True, delimiter=','):
                 from warnings import warn
                 warn(f'No magnitude found for event {evid}')
                 mag = float('nan')
-                magtype = None
+                magtype = ''
             else:
                 mag = magnitude.mag
-                magtype = magnitude.magnitude_type
+                magtype = magnitude.magnitude_type or ''
             d = {'time': origin.time,
                  'lat': origin.latitude,
                  'lon': origin.longitude,
@@ -325,7 +340,7 @@ def write_csv(events, fname, fields='basic', depth_in_km=True, delimiter=','):
                  'mag': mag,
                  'magtype': magtype,
                  'id': evid}
-            f.write(fmtstr.format(**d) + '\n')
+            f.write(fmtstr.format(**d).replace('nan', '') + '\n')
 
 
 def load_csv(fname, skipheader=0, only=None, names=None, **kw):
@@ -355,7 +370,7 @@ def load_csv(fname, skipheader=0, only=None, names=None, **kw):
         kw.setdefault('usecols', usecols)
         kw.setdefault('dtype', dtype)
         kw.setdefault('delimiter', ',')
-        return np.loadtxt(f, **kw)
+        return np.genfromtxt(f, **kw)
 
 
 def events2array(events, **kw):
