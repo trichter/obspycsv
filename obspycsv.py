@@ -28,6 +28,7 @@ from contextlib import contextmanager
 import io
 import math
 from string import Formatter
+from warnings import warn
 import zipfile
 
 import numpy as np
@@ -172,7 +173,8 @@ def _read_picks(event, fname):
         reader = csv.DictReader(f)
         for row in reader:
             phase = row['phase']
-            wid = WaveformStreamID(seed_string=row['seedid'])
+            seedid = row['seedid']
+            wid = WaveformStreamID(seed_string=seedid) if seedid else None
             pick = Pick(waveform_id=wid, phase_hint=phase,
                         time=otime + float(row['time']))
             arrival = Arrival(phase=phase, pick_id=pick.resource_id,
@@ -199,8 +201,13 @@ def _write_picks(event, fname, fields_picks='basic', delimiter=','):
         f.write(delimiter.join(fieldnames) + '\n')
         for pick in event.picks:
             pick_id = str(pick.resource_id)
+            try:
+                seedid = pick.waveform_id.id
+            except:
+                warn(f'No waveform id found for pick {pick_id}')
+                seedid = ''
             d = {'time': pick.time - origin.time,
-                 'seedid': pick.waveform_id.id,
+                 'seedid': seedid,
                  'phase': phases.get(pick_id, pick.phase_hint),
                  'weight': weights.get(pick_id, 1.)}
             f.write(fmtstr.format(**d) + '\n')
@@ -260,11 +267,16 @@ def read_csv(fname, skipheader=0, depth_in_km=True, default=None, names=None,
                 time = UTC(row['time'])
             else:
                 time = UTC('{year}-{mon}-{day} {hour}:{minu}:{sec}'.format(**row))
-            dep = float(row['dep']) * (1000 if depth_in_km else 1)
+            try:
+                dep = float(row['dep']) * (1000 if depth_in_km else 1)
+                if math.isnan(dep):
+                    raise
+            except:
+                dep = None
             origin = Origin(time=time, latitude=row['lat'], longitude=row['lon'], depth=dep)
             try:
                 # add zero to eliminate negative zeros in magnitudes
-                mag = float(row['mag'])+0
+                mag = float(row['mag']) + 0
                 if math.isnan(mag):
                     raise
             except:
@@ -320,23 +332,26 @@ def write_csv(events, fname, fields='basic', depth_in_km=True, delimiter=','):
             try:
                 origin = _origin(event)
             except:
-                from warnings import warn
                 warn(f'No origin found -> do not write event {evid}')
                 continue
             try:
                 magnitude = event.preferred_magnitude() or event.magnitudes[0]
             except:
-                from warnings import warn
                 warn(f'No magnitude found for event {evid}')
                 mag = float('nan')
                 magtype = ''
             else:
                 mag = magnitude.mag
                 magtype = magnitude.magnitude_type or ''
+            try:
+                dep = origin.depth / (1000 if depth_in_km else 1)
+            except:
+                warn(f'No depth set for event {evid}')
+                dep = float('nan')
             d = {'time': origin.time,
                  'lat': origin.latitude,
                  'lon': origin.longitude,
-                 'dep': origin.depth / (1000 if depth_in_km else 1),
+                 'dep': dep,
                  'mag': mag,
                  'magtype': magtype,
                  'id': evid}

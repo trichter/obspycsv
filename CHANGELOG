@@ -1,3 +1,6 @@
+dev:
+  * allow to read/write events without depth
+  * allow to read/write picks without waveformid
 v0.7.0:
   * add basic read support for EVENTTXT format (FDSNWS specification)
   * use empty string instead of nan/None for missing values

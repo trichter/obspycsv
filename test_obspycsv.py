@@ -47,6 +47,7 @@ class CSVCSZTestCase(unittest.TestCase):
         del events[0].magnitudes[0].magnitude_type
         events[1].magnitudes = []
         events[1].preferred_magnitude_id = None
+        events[1].origins[0].depth = None
         events[2].origins = []
         events[2].preferred_origin_id = None
         with NamedTemporaryFile(suffix='.csv') as ft:
@@ -56,8 +57,23 @@ class CSVCSZTestCase(unittest.TestCase):
         self.assertEqual(len(events2), 2)
         self.assertEqual(events2[0].origins[0].time,
                           events[0].origins[0].time)
+        self.assertIs(events2[1].origins[0].depth, None)
         self.assertEqual(events2[1].origins[0].time,
                           events[1].origins[0].time)
+        csv = """time,lat,lon,dep,mag,magtype,id
+2012-04-04,42,42,nan,null,,id1
+2012-04-04,42,42,,10,Munreal,id1"""
+        with NamedTemporaryFile(suffix='.txt') as ft:
+            with open(ft.name, 'w') as f:
+                f.write(csv)
+            self.assertTrue(obspycsv._is_csv(ft.name))
+            events = read_events(ft.name)
+        self.assertEqual(len(events), 2)
+        self.assertIs(events[0].origins[0].depth, None)
+        self.assertEqual(len(events[0].magnitudes), 0)
+        self.assertIs(events[1].origins[0].depth, None)
+        self.assertEqual(len(events[1].magnitudes), 1)
+        self.assertEqual(events[1].magnitudes[0].mag, 10.0)
 
     def test_csv_custom_fmt(self):
         events = read_events()
@@ -98,8 +114,9 @@ class CSVCSZTestCase(unittest.TestCase):
                 pass
             else:
                 _test_write_read(events, compression=True, compresslevel=6)
-            # test with missing origin
+            # test with missing origin and waveformid
             events[1].origins = []
+            events[0].picks[0].waveform_id = None
             with self.assertWarns(Warning):
                 events.write(fname, 'CSZ')
             self.assertTrue(obspycsv._is_csz(fname))
