@@ -38,7 +38,7 @@ from obspy.core.event import (
     ResourceIdentifier)
 
 
-__version__ = '0.8.0'
+__version__ = '0.8.1-dev'
 
 # for reading
 DEFAULT = {'magtype': ''}
