@@ -1,4 +1,4 @@
-dev:
+v0.8.0:
   * allow to read/write events without depth
   * allow to read/write picks without waveformid
 v0.7.0:
