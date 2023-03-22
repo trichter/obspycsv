@@ -1,6 +1,6 @@
 # obspycsv
 
-CSV and CSZ read/write support, EVENTTXT read support for ObsPy earthquake catalogs
+CSV, CSZ and EVENTTXT read/write support for ObsPy earthquake catalogs
 
 [![build status](https://github.com/trichter/obspycsv/workflows/tests/badge.svg)](https://github.com/trichter/obspycsv/actions)
 [![coverage](https://codecov.io/gh/trichter/obspycsv/branch/master/graph/badge.svg)](https://codecov.io/gh/trichter/obspycsv)
