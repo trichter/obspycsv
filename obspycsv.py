@@ -227,7 +227,7 @@ def read_eventtxt(fname, default=None, format_check=False):
                     default=default, format_check=format_check)
 
 
-def read_csv(fname, skipheader=0, depth_in_km=True, default=None, names=None,
+def read_csv(fname, skipheader=0, default=None, names=None,
              check_compression=None, format_check=False,
              **kwargs):
     """
@@ -268,7 +268,10 @@ def read_csv(fname, skipheader=0, depth_in_km=True, default=None, names=None,
             else:
                 time = UTC('{year}-{mon}-{day} {hour}:{minu}:{sec}'.format(**row))
             try:
-                dep = float(row['dep']) * (1000 if depth_in_km else 1)
+                if 'depm' in row:
+                    dep = float(row['depm'])
+                else:
+                    dep = float(row['dep']) * 1000
                 if math.isnan(dep):
                     raise
             except:
@@ -300,29 +303,24 @@ def read_csv(fname, skipheader=0, depth_in_km=True, default=None, names=None,
     return Catalog(events=events)
 
 
-def write_csv_default(events, fname, fields='basic'):
-    """
-    Write ObsPy catalog to CSV file
-
-    :param events: catalog or list of events
-    :param fname: file name
-    """
-    return write_csv(events, fname, fields=fields)
-
-
 def write_csv(events, fname, fields='basic', depth_in_km=True, delimiter=','):
     """
     Write ObsPy catalog to CSV file
 
     :param events: catalog or list of events
     :param fname: file name
-    :param depth_in_km: write depth in units of kilometer (default: True) or meter
-    :param delimiter: defaults to `','`
+    :param depth_in_km: write depth in units of kilometer (default: True) or
+        meter
+    :param delimiter: defaults to `','`, if the delimiter is changed, ObsPy's
+        read_events function will not automatically identify the file as
+        CSV file
     """
     fields = FIELDS.get(fields, fields)
     if ' ' in fields:
         fields = fields.split()
     fmtstr = delimiter.join(fields)
+    if not depth_in_km and 'depm' not in fmtstr:
+        fmtstr = fmtstr.replace('dep', 'depm')
     fieldnames = [
         fn for _, fn, _, _ in Formatter().parse(fmtstr) if fn is not None]
     with _open(fname, 'w') as f:
@@ -351,7 +349,7 @@ def write_csv(events, fname, fields='basic', depth_in_km=True, delimiter=','):
             d = {'time': origin.time,
                  'lat': origin.latitude,
                  'lon': origin.longitude,
-                 'dep': dep,
+                 'dep' if depth_in_km else 'depm' : dep,
                  'mag': mag,
                  'magtype': magtype,
                  'id': evid}

@@ -21,6 +21,13 @@ class CSVCSZTestCase(unittest.TestCase):
         self.assertEqual(len(events2), len(events))
         self.assertEqual(events2[0].origins[0].time,
                           events[0].origins[0].time)
+        with NamedTemporaryFile(suffix='.csv') as ft:
+            events.write(ft.name, 'CSV', depth_in_km=True)
+            events2 = read_events(ft.name)
+        self.assertEqual(len(events2), len(events))
+        self.assertEqual(events2[0].origins[0].time,
+                          events[0].origins[0].time)
+
 
     def test_csv_reading_external_catalog(self):
         external = (
