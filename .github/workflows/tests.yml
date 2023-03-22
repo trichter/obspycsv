@@ -38,7 +38,7 @@ jobs:
       - name: run test suite
         run: |
           mkdir empty; cd empty
-          coverage run ../test_obspycsv.py
+          coverage run -m pytest ../test_obspycsv.py
           coverage xml -o ../coverage.xml
       - name: upload coverage
         uses: codecov/codecov-action@v3

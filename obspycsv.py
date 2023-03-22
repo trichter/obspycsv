@@ -30,10 +30,8 @@ import io
 import math
 from string import Formatter
 from warnings import warn
-try:
-    import zipfile
-except ImportError:
-    zipfile = None
+import zipfile
+
 
 import numpy as np
 from obspy import UTCDateTime as UTC
@@ -410,7 +408,7 @@ def load_csv(fname, skipheader=0, only=None, names=None,
     :param **kw: Other kwargs are passed to `np.loadtxt`
 
     """
-    if isinstance(fname, str) and zipfile and zipfile.is_zipfile(fname):
+    if isinstance(fname, str) and zipfile.is_zipfile(fname):
         with zipfile.ZipFile(fname) as zipf:
             with io.TextIOWrapper(
                     zipf.open('events.csv'), encoding='utf-8') as f:

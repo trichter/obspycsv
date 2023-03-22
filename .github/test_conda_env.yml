@@ -4,3 +4,4 @@ channels:
 dependencies:
   - obspy
   - coverage
+  - pytest
