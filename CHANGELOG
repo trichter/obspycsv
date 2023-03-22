@@ -2,6 +2,7 @@ dev:
   * depth uses different header for km and m (default dep vs depm)
   * removed depth_in_km kwarg in read_csv
   * allow to pass all arguments to Stream.write which are accepted by write_csv
+  * use the same order of fields as in EVENTTXT files
 v0.8.0:
   * allow to read/write events without depth
   * allow to read/write picks without waveformid

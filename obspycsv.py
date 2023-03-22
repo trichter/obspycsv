@@ -44,7 +44,8 @@ __version__ = '0.8.1-dev'
 DEFAULT = {'magtype': ''}
 # for writing
 FIELDS = {
-    'basic': '{time!s:.25} {lat:.6f} {lon:.6f} {dep:.3f} {mag:.2f} {magtype} {id}'
+    'basic': ('{id} {time!s:.25} {lat:.6f} {lon:.6f} {dep:.3f} '
+              '{magtype} {mag:.2f}'),
     }
 PFIELDS = {
     'basic': '{seedid} {phase} {time:.5f} {weight:.3f}'
