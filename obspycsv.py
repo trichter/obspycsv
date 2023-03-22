@@ -44,8 +44,12 @@ __version__ = '0.8.1-dev'
 DEFAULT = {'magtype': ''}
 # for writing
 FIELDS = {
-    'basic': ('{id} {time!s:.25} {lat:.6f} {lon:.6f} {dep:.3f} '
-              '{magtype} {mag:.2f}'),
+    'basic': (
+        '{id} {time!s:.25} {lat:.6f} {lon:.6f} {dep:.3f} '
+        '{magtype} {mag:.2f}'),
+    'eventtxt': (
+        '{id},{time!s:.25},{lat:.6f},{lon:.6f},{dep:.3f},{author},,{contrib},,'
+        '{magtype},{mag:.2f},{magauthor},{region}').split(',')
     }
 PFIELDS = {
     'basic': '{seedid} {phase} {time:.5f} {weight:.3f}'
@@ -62,12 +66,14 @@ DTYPE = {
     'id': 'U50'
     }
 
-# EventID | Time | Latitude | Longitude | Depth/km | Author | Catalog |
-# Contributor | ContributorID | MagType | Magnitude | MagAuthor |
-# EventLocationName
 # catalog and contribid are not used
-NAMES_EVENTTXT = ('id time lat lon dep author catalog contrib contribid '
-                  'magtype mag magauthor region')
+EVENTTXT_NAMES = (  # for reading
+    'id time lat lon dep author catalog contrib contribid '
+    'magtype mag magauthor region')
+EVENTTXT_HEADER = (  # for writing
+    '#EventID | Time | Latitude | Longitude | Depth/km | Author | Catalog | '
+    'Contributor | ContributorID | MagType | Magnitude | MagAuthor | '
+    'EventLocationName')
 
 
 def _is_csv(fname, **kwargs):
@@ -113,125 +119,12 @@ def _open(filein, *args, **kwargs):
         yield filein
 
 
-def read_csz(fname, default=None, check_compression=None):
-    """
-    Read a CSZ file and return ObsPy Catalog with picks
-
-    :param default: dictionary with default values, at the moment only
-         magtype is supported,
-         i.e. to set magtypes use `default={'magtype': 'Ml'}`
-    :param check_compression: Has to be set to False, when using
-        ObsPy's read_events() function, otherwise ObsPy will automatically
-        unpack the zip file and reading it with obspycsv will not work.
-        The option is not used by read_csz.
-    """
-    with zipfile.ZipFile(fname) as zipf:
-        with io.TextIOWrapper(zipf.open('events.csv'), encoding='utf-8') as f:
-            events = read_csv(f, default=default)
-        for event in events:
-            evid = _evid(event)
-            fname = f'picks_{evid}.csv'
-            if fname not in zipf.namelist():
-                continue
-            with io.TextIOWrapper(zipf.open(fname), encoding='utf-8') as f:
-                _read_picks(event, f)
-    return events
-
-
-def write_csz(events, fname, fields='basic', fields_picks='basic', **kwargs):
-    """
-    Write ObsPy catalog to CSZ file
-
-    :param events: catalog or list of events
-    :param fname: file name
-    :param **kwargs: compression and compression level can be specified see
-    https://docs.python.org/library/zipfile.html#zipfile.ZipFile
-    ```
-    events.write('CSZ', compression=True, compresslevel=9)
-    ```
-    """
-    # allow True as value for compression
-    if kwargs.get('compression') is True:
-        kwargs['compression'] = zipfile.ZIP_DEFLATED
-    with zipfile.ZipFile(fname, mode='w', **kwargs) as zipf:
-        zipf.comment = CSZ_COMMENT
-        with io.StringIO() as f:
-            write_csv(events, f, fields=fields)
-            zipf.writestr('events.csv', f.getvalue())
-        for event in events:
-            if len(event.picks) == 0:
-                continue
-            evid = str(event.resource_id).split('/')[-1]
-            try:
-                _origin(event)
-            except:
-                continue
-            with io.StringIO() as f:
-                _write_picks(event, f, fields_picks=fields_picks)
-                zipf.writestr(f'picks_{evid}.csv', f.getvalue())
-
-
-def _read_picks(event, fname):
-    otime = _origin(event).time
-    picks = []
-    arrivals = []
-    with _open(fname) as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            phase = row['phase']
-            seedid = row['seedid']
-            wid = (evmod.WaveformStreamID(seed_string=seedid) if seedid
-                   else None)
-            pick = evmod.Pick(waveform_id=wid, phase_hint=phase,
-                              time=otime + float(row['time']))
-            arrival = evmod.Arrival(phase=phase, pick_id=pick.resource_id,
-                                    time_weight=float(row['weight']))
-            picks.append(pick)
-            arrivals.append(arrival)
-    event.picks = picks
-    event.origins[0].arrivals = arrivals
-
-
-def _write_picks(event, fname, fields_picks='basic', delimiter=','):
-    fields = PFIELDS.get(fields_picks, fields_picks)
-    if ' ' in fields:
-        fields = fields.split()
-    fmtstr = delimiter.join(fields)
-    fieldnames = [
-        fn for _, fn, _, _ in Formatter().parse(fmtstr) if fn is not None]
-    origin = _origin(event)
-    weights = {str(arrival.pick_id): arrival.time_weight
-               for arrival in origin.arrivals if arrival.time_weight}
-    phases = {str(arrival.pick_id): arrival.phase
-               for arrival in origin.arrivals if arrival.phase}
-    with _open(fname, 'w') as f:
-        f.write(delimiter.join(fieldnames) + '\n')
-        for pick in event.picks:
-            pick_id = str(pick.resource_id)
-            try:
-                seedid = pick.waveform_id.id
-            except:
-                warn(f'No waveform id found for pick {pick_id}')
-                seedid = ''
-            d = {'time': pick.time - origin.time,
-                 'seedid': seedid,
-                 'phase': phases.get(pick_id, pick.phase_hint),
-                 'weight': weights.get(pick_id, 1.)}
-            f.write(fmtstr.format(**d) + '\n')
-
-
 def _names_sequence(names):
     if isinstance(names, dict):
         names = [names.get(i, '_') for i in range(max(names.keys())+1)]
     elif ' ' in names:
         names = names.split()
     return names
-
-
-def read_eventtxt(fname, default=None, format_check=False):
-    return read_csv(fname,
-                    skipheader=1, names=NAMES_EVENTTXT, delimiter='|',
-                    default=default, format_check=format_check)
 
 
 def _string(row, key):
@@ -345,7 +238,8 @@ def read_csv(fname, skipheader=0, default=None, names=None,
     return evmod.Catalog(events=events)
 
 
-def write_csv(events, fname, fields='basic', depth_in_km=True, delimiter=','):
+def write_csv(events, fname, fields='basic', depth_in_km=True, delimiter=',',
+              header=None):
     """
     Write ObsPy catalog to CSV file
 
@@ -363,10 +257,12 @@ def write_csv(events, fname, fields='basic', depth_in_km=True, delimiter=','):
     fmtstr = delimiter.join(fields)
     if not depth_in_km and 'depm' not in fmtstr:
         fmtstr = fmtstr.replace('dep', 'depm')
-    fieldnames = [
-        fn for _, fn, _, _ in Formatter().parse(fmtstr) if fn is not None]
+    if header is None:
+        fieldnames = [
+            fn for _, fn, _, _ in Formatter().parse(fmtstr) if fn is not None]
+        header = delimiter.join(fieldnames)
     with _open(fname, 'w') as f:
-        f.write(delimiter.join(fieldnames) + '\n')
+        f.write(header + '\n')
         for event in events:
             evid = str(event.resource_id).split('/')[-1]
             try:
@@ -428,12 +324,6 @@ def load_csv(fname, skipheader=0, only=None, names=None,
         return np.genfromtxt(f, delimiter=delimiter, **kw)
 
 
-def load_eventtxt(fname, **kw):
-    kw.setdefault('delimiter', '|')
-    kw.setdefault('skipheader', 1)
-    return load_csv(fname, names=NAMES_EVENTTXT, **kw)
-
-
 def events2array(events, **kw):
     """
     Convert ObsPy catalog to numpy array
@@ -445,3 +335,127 @@ def events2array(events, **kw):
         write_csv(events, f)
         f.seek(0)
         return load_csv(f, **kw)
+
+
+def read_eventtxt(fname, default=None, format_check=False):
+    return read_csv(fname,
+                    skipheader=1, names=EVENTTXT_NAMES, delimiter='|',
+                    default=default, format_check=format_check)
+
+
+def write_eventtxt(fname):
+    return write_csv(fname, fields='eventtxt', header=EVENTTXT_HEADER,
+                     delimiter='|')
+
+
+def load_eventtxt(fname, **kw):
+    kw.setdefault('delimiter', '|')
+    kw.setdefault('skipheader', 1)
+    return load_csv(fname, names=EVENTTXT_NAMES, **kw)
+
+
+def _read_picks(event, fname):
+    otime = _origin(event).time
+    picks = []
+    arrivals = []
+    with _open(fname) as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            phase = row['phase']
+            seedid = row['seedid']
+            wid = (evmod.WaveformStreamID(seed_string=seedid) if seedid
+                   else None)
+            pick = evmod.Pick(waveform_id=wid, phase_hint=phase,
+                              time=otime + float(row['time']))
+            arrival = evmod.Arrival(phase=phase, pick_id=pick.resource_id,
+                                    time_weight=float(row['weight']))
+            picks.append(pick)
+            arrivals.append(arrival)
+    event.picks = picks
+    event.origins[0].arrivals = arrivals
+
+
+def _write_picks(event, fname, fields_picks='basic', delimiter=','):
+    fields = PFIELDS.get(fields_picks, fields_picks)
+    if ' ' in fields:
+        fields = fields.split()
+    fmtstr = delimiter.join(fields)
+    fieldnames = [
+        fn for _, fn, _, _ in Formatter().parse(fmtstr) if fn is not None]
+    origin = _origin(event)
+    weights = {str(arrival.pick_id): arrival.time_weight
+               for arrival in origin.arrivals if arrival.time_weight}
+    phases = {str(arrival.pick_id): arrival.phase
+               for arrival in origin.arrivals if arrival.phase}
+    with _open(fname, 'w') as f:
+        f.write(delimiter.join(fieldnames) + '\n')
+        for pick in event.picks:
+            pick_id = str(pick.resource_id)
+            try:
+                seedid = pick.waveform_id.id
+            except:
+                warn(f'No waveform id found for pick {pick_id}')
+                seedid = ''
+            d = {'time': pick.time - origin.time,
+                 'seedid': seedid,
+                 'phase': phases.get(pick_id, pick.phase_hint),
+                 'weight': weights.get(pick_id, 1.)}
+            f.write(fmtstr.format(**d) + '\n')
+
+
+def read_csz(fname, default=None, check_compression=None):
+    """
+    Read a CSZ file and return ObsPy Catalog with picks
+
+    :param default: dictionary with default values, at the moment only
+         magtype is supported,
+         i.e. to set magtypes use `default={'magtype': 'Ml'}`
+    :param check_compression: Has to be set to False, when using
+        ObsPy's read_events() function, otherwise ObsPy will automatically
+        unpack the zip file and reading it with obspycsv will not work.
+        The option is not used by read_csz.
+    """
+    with zipfile.ZipFile(fname) as zipf:
+        with io.TextIOWrapper(zipf.open('events.csv'), encoding='utf-8') as f:
+            events = read_csv(f, default=default)
+        for event in events:
+            evid = _evid(event)
+            fname = f'picks_{evid}.csv'
+            if fname not in zipf.namelist():
+                continue
+            with io.TextIOWrapper(zipf.open(fname), encoding='utf-8') as f:
+                _read_picks(event, f)
+    return events
+
+
+def write_csz(events, fname, fields='basic', fields_picks='basic', **kwargs):
+    """
+    Write ObsPy catalog to CSZ file
+
+    :param events: catalog or list of events
+    :param fname: file name
+    :param **kwargs: compression and compression level can be specified see
+    https://docs.python.org/library/zipfile.html#zipfile.ZipFile
+    ```
+    events.write('CSZ', compression=True, compresslevel=9)
+    ```
+    """
+    # allow True as value for compression
+    if kwargs.get('compression') is True:
+        kwargs['compression'] = zipfile.ZIP_DEFLATED
+    with zipfile.ZipFile(fname, mode='w', **kwargs) as zipf:
+        zipf.comment = CSZ_COMMENT
+        with io.StringIO() as f:
+            write_csv(events, f, fields=fields)
+            zipf.writestr('events.csv', f.getvalue())
+        for event in events:
+            if len(event.picks) == 0:
+                continue
+            evid = str(event.resource_id).split('/')[-1]
+            try:
+                _origin(event)
+            except:
+                continue
+            with io.StringIO() as f:
+                _write_picks(event, f, fields_picks=fields_picks)
+                zipf.writestr(f'picks_{evid}.csv', f.getvalue())

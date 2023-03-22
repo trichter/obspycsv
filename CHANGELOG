@@ -5,6 +5,7 @@ dev:
   * use the same order of fields as in EVENTTXT files
   * add read support for most EVENTTXT fields
   * add load_eventtxt function to load an EVENTXT file into a numpy array
+  * add write support for EVENTTXT
   * zipfile module now only needed for CSZ format
 v0.8.0:
   * allow to read/write events without depth
