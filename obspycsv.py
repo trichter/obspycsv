@@ -7,7 +7,8 @@ time or year, mon, day, hour, minu, sec
 lat, lon, dep, mag, magtype, id
 (see also global FIELDS variable and help of read_csv)
 
-Note: This plugin can be easily extended to write and read more event information.
+Note: This plugin can be easily extended to write and read more event
+information.
 If you are interested, please send a PR to the github repository.
   1. Add 'extended' or similar key to FIELDS dict, e.g. as a start use
       'extended': (
@@ -62,7 +63,9 @@ DTYPE = {
     'id': 'U50'
     }
 
-#EventID | Time | Latitude | Longitude | Depth/km | Author | Catalog | Contributor | ContributorID | MagType | Magnitude | MagAuthor | EventLocationName
+# EventID | Time | Latitude | Longitude | Depth/km | Author | Catalog |
+# Contributor | ContributorID | MagType | Magnitude | MagAuthor |
+# EventLocationName
 NAMES_EVENTTXT = 'id time lat lon dep _ _ _ _ magtype mag _ _'
 
 
@@ -146,7 +149,8 @@ def write_csz(events, fname, fields='basic', fields_picks='basic', **kwargs):
     events.write('CSZ', compression=True, compresslevel=9)
     ```
     """
-    if kwargs.get('compression') is True:  # allow True as value for compression
+    # allow True as value for compression
+    if kwargs.get('compression') is True:
         kwargs['compression'] = zipfile.ZIP_DEFLATED
     with zipfile.ZipFile(fname, mode='w', **kwargs) as zipf:
         zipf.comment = CSZ_COMMENT
@@ -251,7 +255,8 @@ def read_csv(fname, skipheader=0, default=None, names=None,
     Example reading an external csv file:
 
         from obspy import read_events
-        names = 'year mon day hour minu sec _ lat lon dep _ _ mag _ _ _ _ _ _ id'
+        names = ('year mon day hour minu sec _ '
+                 'lat lon dep _ _ mag _ _ _ _ _ _ id')
         catalog = read_events('external.csv', 'CSV', skipheader=1, names=names)
     """
     if default is None:
@@ -267,7 +272,8 @@ def read_csv(fname, skipheader=0, default=None, names=None,
             if 'time' in row:
                 time = UTC(row['time'])
             else:
-                time = UTC('{year}-{mon}-{day} {hour}:{minu}:{sec}'.format(**row))
+                time = UTC(
+                    '{year}-{mon}-{day} {hour}:{minu}:{sec}'.format(**row))
             try:
                 if 'depm' in row:
                     dep = float(row['depm'])
@@ -277,7 +283,12 @@ def read_csv(fname, skipheader=0, default=None, names=None,
                     raise
             except:
                 dep = None
-            origin = Origin(time=time, latitude=row['lat'], longitude=row['lon'], depth=dep)
+            origin = Origin(
+                time=time,
+                latitude=row['lat'],
+                ongitude=row['lon'],
+                depth=dep,
+                )
             try:
                 # add zero to eliminate negative zeros in magnitudes
                 mag = float(row['mag']) + 0
@@ -293,13 +304,21 @@ def read_csv(fname, skipheader=0, default=None, names=None,
                 except:
                     magtype = default.get('magtype')
                 magnitudes = [Magnitude(mag=mag, magnitude_type=magtype)]
-            id_ = ResourceIdentifier(row['id'].strip()) if 'id' in row else None
-            event = Event(magnitudes=magnitudes, origins=[origin], resource_id=id_)
+            if 'id' in row:
+                id_ = ResourceIdentifier(row['id'].strip())
+            else:
+                id_ = None
+            event = Event(
+                magnitudes=magnitudes,
+                origins=[origin],
+                resource_id=id_,
+                )
             events.append(event)
             if format_check:
                 return True
     if format_check:
-        # empty file will return an empty catalog, but it is not detected as CSV file
+        # empty file will return an empty catalog,
+        # but it is not detected as CSV file
         return False
     return Catalog(events=events)
 
