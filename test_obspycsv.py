@@ -1,4 +1,5 @@
 # Copyright 2022 Tom Eulenfeld, MIT license
+import io
 import os.path
 from tempfile import gettempdir
 
@@ -212,10 +213,10 @@ def test_eventtxt():
         '#EventID | Time | Latitude | Longitude | Depth/km | '
         'Author | Catalog | Contributor | ContributorID | '
         'MagType | Magnitude | MagAuthor | EventLocationName\n'
-        '3337497|2012-04-11T08:38:37|2.2376|93.0144|26.3|ISC|ISC|ISC|'
-        '600860404|MW|8.6|GCMT|SUMATRA\n'
-        '2413|1960-05-22T19:11:14|-38.17|-72.57|0.0||||'
-        '879136||8.5||')
+        '3337497|2012-04-11T08:38:37.00000|2.237600|93.014400|26.300|'
+        'ISC||ISC||MW|8.60|GCMT|SUMATRA\n'
+        '2413|1960-05-22T19:11:14.00000|-38.170000|-72.570000|0.000|'
+        '|||||8.50||\n')
     with NamedTemporaryFile(suffix='.txt') as ft:
         with open(ft.name, 'w') as f:
             f.write(eventtxt)
@@ -232,3 +233,6 @@ def test_eventtxt():
     assert events[1].origins[0].creation_info == None
     assert events[1].magnitudes[0].creation_info == None
     assert list(arr['mag']) == [8.6, 8.5]
+    with io.StringIO() as f:
+        events.write(f, 'EVENTTXT')
+        assert f.getvalue() == eventtxt

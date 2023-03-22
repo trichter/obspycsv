@@ -271,26 +271,50 @@ def write_csv(events, fname, fields='basic', depth_in_km=True, delimiter=',',
                 warn(f'No origin found -> do not write event {evid}')
                 continue
             try:
+                author = origin.creation_info.author
+            except AttributeError:
+                author = ''
+            try:
+                contrib = origin.creation_info.agency_id
+            except AttributeError:
+                contrib = ''
+            try:
                 magnitude = event.preferred_magnitude() or event.magnitudes[0]
             except:
                 warn(f'No magnitude found for event {evid}')
                 mag = float('nan')
                 magtype = ''
+                magauthor = ''
             else:
                 mag = magnitude.mag
                 magtype = magnitude.magnitude_type or ''
+                try:
+                    magauthor = magnitude.creation_info.author
+                except:
+                    magauthor = ''
             try:
                 dep = origin.depth / (1000 if depth_in_km else 1)
             except:
                 warn(f'No depth set for event {evid}')
                 dep = float('nan')
+            for description in event.event_descriptions:
+                if str(description.type) == 'region name':
+                    region = description.text
+                    break
+            else:
+                region = ''
             d = {'time': origin.time,
                  'lat': origin.latitude,
                  'lon': origin.longitude,
                  'dep' if depth_in_km else 'depm' : dep,
                  'mag': mag,
                  'magtype': magtype,
-                 'id': evid}
+                 'id': evid,
+                 'author': author,
+                 'contrib': contrib,
+                 'magauthor': magauthor,
+                 'region': region,
+                 }
             f.write(fmtstr.format(**d).replace('nan', '') + '\n')
 
 
@@ -343,8 +367,8 @@ def read_eventtxt(fname, default=None, format_check=False):
                     default=default, format_check=format_check)
 
 
-def write_eventtxt(fname):
-    return write_csv(fname, fields='eventtxt', header=EVENTTXT_HEADER,
+def write_eventtxt(events, fname):
+    return write_csv(events, fname, fields='eventtxt', header=EVENTTXT_HEADER,
                      delimiter='|')
 
 

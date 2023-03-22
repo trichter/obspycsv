@@ -34,7 +34,8 @@ ENTRY_POINTS = {
         'writeFormat = obspycsv:write_csz'],
     'obspy.plugin.event.EVENTTXT': [
         'isFormat = obspycsv:_is_eventtxt',
-        'readFormat = obspycsv:read_eventtxt']
+        'readFormat = obspycsv:read_eventtxt',
+        'writeFormat = obspycsv:write_eventtxt']
     }
 
 CLASSIFIERS = [
