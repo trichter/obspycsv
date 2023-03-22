@@ -30,13 +30,14 @@ import io
 import math
 from string import Formatter
 from warnings import warn
-import zipfile
+try:
+    import zipfile
+except ImportError:
+    zipfile = None
 
 import numpy as np
 from obspy import UTCDateTime as UTC
-from obspy.core.event import (
-    Catalog, Event, Origin, Magnitude, Pick, WaveformStreamID, Arrival,
-    ResourceIdentifier)
+from obspy.core import event as evmod
 
 
 __version__ = '0.8.1-dev'
@@ -66,7 +67,9 @@ DTYPE = {
 # EventID | Time | Latitude | Longitude | Depth/km | Author | Catalog |
 # Contributor | ContributorID | MagType | Magnitude | MagAuthor |
 # EventLocationName
-NAMES_EVENTTXT = 'id time lat lon dep _ _ _ _ magtype mag _ _'
+# catalog and contribid are not used
+NAMES_EVENTTXT = ('id time lat lon dep author catalog contrib contribid '
+                  'magtype mag magauthor region')
 
 
 def _is_csv(fname, **kwargs):
@@ -179,11 +182,12 @@ def _read_picks(event, fname):
         for row in reader:
             phase = row['phase']
             seedid = row['seedid']
-            wid = WaveformStreamID(seed_string=seedid) if seedid else None
-            pick = Pick(waveform_id=wid, phase_hint=phase,
-                        time=otime + float(row['time']))
-            arrival = Arrival(phase=phase, pick_id=pick.resource_id,
-                              time_weight=float(row['weight']))
+            wid = (evmod.WaveformStreamID(seed_string=seedid) if seedid
+                   else None)
+            pick = evmod.Pick(waveform_id=wid, phase_hint=phase,
+                              time=otime + float(row['time']))
+            arrival = evmod.Arrival(phase=phase, pick_id=pick.resource_id,
+                                    time_weight=float(row['weight']))
             picks.append(pick)
             arrivals.append(arrival)
     event.picks = picks
@@ -230,6 +234,11 @@ def read_eventtxt(fname, default=None, format_check=False):
     return read_csv(fname,
                     skipheader=1, names=NAMES_EVENTTXT, delimiter='|',
                     default=default, format_check=format_check)
+
+
+def _string(row, key):
+    if key in row and row[key].strip() != '':
+        return row[key].strip()
 
 
 def read_csv(fname, skipheader=0, default=None, names=None,
@@ -283,11 +292,18 @@ def read_csv(fname, skipheader=0, default=None, names=None,
                     raise
             except:
                 dep = None
-            origin = Origin(
+            author = _string(row, 'author')
+            contrib = _string(row, 'contrib')
+            if author is not None or contrib is not None:
+                info = evmod.CreationInfo(author=author, agency_id=contrib)
+            else:
+                info = None
+            origin = evmod.Origin(
                 time=time,
                 latitude=row['lat'],
-                ongitude=row['lon'],
+                longitude=row['lon'],
                 depth=dep,
+                creation_info=info
                 )
             try:
                 # add zero to eliminate negative zeros in magnitudes
@@ -303,15 +319,23 @@ def read_csv(fname, skipheader=0, default=None, names=None,
                         raise
                 except:
                     magtype = default.get('magtype')
-                magnitudes = [Magnitude(mag=mag, magnitude_type=magtype)]
+                magauthor = _string(row, 'magauthor')
+                info = (evmod.CreationInfo(author=magauthor) if magauthor
+                        else None)
+                magnitudes = [evmod.Magnitude(
+                    mag=mag, magnitude_type=magtype, creation_info=info)]
             if 'id' in row:
-                id_ = ResourceIdentifier(row['id'].strip())
+                id_ = evmod.ResourceIdentifier(row['id'].strip())
             else:
                 id_ = None
-            event = Event(
+            region = _string(row, 'region')
+            descs = ([evmod.EventDescription(region, 'region name')]
+                     if region else [])
+            event = evmod.Event(
                 magnitudes=magnitudes,
                 origins=[origin],
                 resource_id=id_,
+                event_descriptions=descs
                 )
             events.append(event)
             if format_check:
@@ -320,7 +344,7 @@ def read_csv(fname, skipheader=0, default=None, names=None,
         # empty file will return an empty catalog,
         # but it is not detected as CSV file
         return False
-    return Catalog(events=events)
+    return evmod.Catalog(events=events)
 
 
 def write_csv(events, fname, fields='basic', depth_in_km=True, delimiter=','):
@@ -376,7 +400,8 @@ def write_csv(events, fname, fields='basic', depth_in_km=True, delimiter=','):
             f.write(fmtstr.format(**d).replace('nan', '') + '\n')
 
 
-def load_csv(fname, skipheader=0, only=None, names=None, **kw):
+def load_csv(fname, skipheader=0, only=None, names=None,
+             delimiter=',', **kw):
     """
     Load CSV or CSZ file into numpy array
 
@@ -385,7 +410,7 @@ def load_csv(fname, skipheader=0, only=None, names=None, **kw):
     :param **kw: Other kwargs are passed to `np.loadtxt`
 
     """
-    if isinstance(fname, str) and zipfile.is_zipfile(fname):
+    if isinstance(fname, str) and zipfile and zipfile.is_zipfile(fname):
         with zipfile.ZipFile(fname) as zipf:
             with io.TextIOWrapper(
                     zipf.open('events.csv'), encoding='utf-8') as f:
@@ -402,8 +427,13 @@ def load_csv(fname, skipheader=0, only=None, names=None, **kw):
                         (only is None or n in only)]
         kw.setdefault('usecols', usecols)
         kw.setdefault('dtype', dtype)
-        kw.setdefault('delimiter', ',')
-        return np.genfromtxt(f, **kw)
+        return np.genfromtxt(f, delimiter=delimiter, **kw)
+
+
+def load_eventtxt(fname, **kw):
+    kw.setdefault('delimiter', '|')
+    kw.setdefault('skipheader', 1)
+    return load_csv(fname, names=NAMES_EVENTTXT, **kw)
 
 
 def events2array(events, **kw):

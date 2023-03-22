@@ -3,6 +3,9 @@ dev:
   * removed depth_in_km kwarg in read_csv
   * allow to pass all arguments to Stream.write which are accepted by write_csv
   * use the same order of fields as in EVENTTXT files
+  * add read support for most EVENTTXT fields
+  * add load_eventtxt function to load an EVENTXT file into a numpy array
+  * zipfile module now only needed for CSZ format
 v0.8.0:
   * allow to read/write events without depth
   * allow to read/write picks without waveformid

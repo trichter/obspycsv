@@ -210,18 +210,25 @@ class CSVCSZTestCase(unittest.TestCase):
             'Author | Catalog | Contributor | ContributorID | '
             'MagType | Magnitude | MagAuthor | EventLocationName\n'
             '3337497|2012-04-11T08:38:37|2.2376|93.0144|26.3|ISC|ISC|ISC|'
-            '600860404|MW|8.6|GCMT|OFF W COAST OF NORTHERN SUMATRA\n'
-            '2413|1960-05-22T19:11:14|-38.17|-72.57|0.0|ISS|ISC|ISC|'
-            '879136||8.5|PAS|CENTRAL CHILE')
+            '600860404|MW|8.6|GCMT|SUMATRA\n'
+            '2413|1960-05-22T19:11:14|-38.17|-72.57|0.0||||'
+            '879136||8.5||')
         with NamedTemporaryFile(suffix='.txt') as ft:
             with open(ft.name, 'w') as f:
                 f.write(eventtxt)
             self.assertTrue(obspycsv._is_eventtxt(ft.name))
             events = read_events(ft.name)
+            arr = obspycsv.load_eventtxt(ft.name)
         self.assertEqual(len(events), 2)
         self.assertEqual(str(events[0].origins[0].time),
                          '2012-04-11T08:38:37.000000Z')
+        self.assertEqual(events[0].origins[0].creation_info.author, 'ISC')
+        self.assertEqual(events[0].magnitudes[0].creation_info.author, 'GCMT')
+        self.assertEqual(events[0].event_descriptions[0].text, 'SUMATRA')
         self.assertEqual(len(events[0].magnitudes), 1)
+        self.assertEqual(events[1].origins[0].creation_info, None)
+        self.assertEqual(events[1].magnitudes[0].creation_info, None)
+        self.assertEqual(list(arr['mag']), [8.6, 8.5])
 
 
 def suite():
