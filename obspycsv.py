@@ -132,7 +132,7 @@ def _string(row, key):
 
 
 def _read_csv(fname, skipheader=0, default=None, names=None,
-              format_check=False, **kwargs):
+              format_check=False, check_compression=None, **kwargs):
     """
     Read a CSV file and return ObsPy catalog
 
@@ -416,7 +416,8 @@ def _events2array(events, **kw):
 events2array = _events2array
 
 
-def _read_eventtxt(fname, default=None, format_check=False):
+def _read_eventtxt(fname, default=None, format_check=False,
+                   check_compression=None):
     """
     Read EVENTTXT file and return ObsPy catalog
 
@@ -516,7 +517,7 @@ def _write_picks(event, fname, fields_picks='basic', delimiter=','):
             f.write(fmtstr.format(**d) + '\n')
 
 
-def _read_csz(fname, default=None):
+def _read_csz(fname, default=None, check_compression=None):
     """
     Read a CSZ file and return ObsPy catalog with picks
 
