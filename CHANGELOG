@@ -1,12 +1,16 @@
-dev:
+v1.0.0:
+  * The same version of obspycsv is included in ObsPy's>=1.5 io.csv module.
+    Therefore obspycsv will be obsolete with ObsPy>=1.5
+  * make reading and writing functions private
+  * make _events2array private, keep public version for backwards compatibility
   * depth uses different header for km and m (default dep vs depm)
-  * removed depth_in_km kwarg in read_csv
-  * allow to pass all arguments to Stream.write which are accepted by write_csv
+  * removed depth_in_km kwarg in _read_csv
+  * allow to pass all arguments to Stream.write which are accepted by _write_csv
   * use the same order of fields as in EVENTTXT files
   * add read support for most EVENTTXT fields
   * add load_eventtxt function to load an EVENTXT file into a numpy array
   * add write support for EVENTTXT
-  * zipfile module now only needed for CSZ format
+  * improve documentation
 v0.8.0:
   * allow to read/write events without depth
   * allow to read/write picks without waveformid
