@@ -34,7 +34,7 @@ from obspy.core import event as evmod
 from obspy.core.util.decorator import map_example_filename
 
 
-__version__ = '1.0.0-dev'
+__version__ = '1.0.0'
 
 
 # for reading
