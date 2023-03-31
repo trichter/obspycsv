@@ -1,33 +1,28 @@
-## Copyright 2022 Tom Eulenfeld, MIT license
+## Copyright 2022-2023 Tom Eulenfeld, MIT license
 """
-CSV and CSZ read/write support for ObsPy earthquake catalogs
-
-You can use the following field names to read an external CSV file
-time or year, mon, day, hour, minu, sec
-lat, lon, dep, mag, magtype, id
-(see also global FIELDS variable and help of read_csv)
-
-Note: This plugin can be easily extended to write and read more event
-information.
-If you are interested, please send a PR to the github repository.
-  1. Add 'extended' or similar key to FIELDS dict, e.g. as a start use
-      'extended': (
-          '{time!s:.25} {lat:.6f} {lat_err:.6f} {lon:.6f} {lon_err:.6f} '
-          '{dep:.3f} {dep_err:.3f} {mag:.2f} {mag_err:.2f} {magtype} {id}'
-          )
-     You can also test by just passing the string to `fields` option.
-  2. Implement writing functionality in write_csv by adding the new properties
-     to the dict d. Missing values have to be handled.
-  3. Implement reading functionality for the new properties in read_csv.
-  4. Write some tests testing all new properties. Check that an event with
-     all new properties defined or missing can be written and read again.
-Similar can be done for the picks using PFIELDS, _write_picks, _read_picks
+.. note::
+    This module can be easily extended to write and read more event
+    information.
+    If you are interested, please send a PR to the github repository.
+      1. Add 'extended' or similar key to FIELDS dict, e.g. as a start use
+          'extended': (
+              '{time!s:.25} {lat:.6f} {lat_err:.6f} {lon:.6f} {lon_err:.6f} '
+              '{dep:.3f} {dep_err:.3f} {mag:.2f} {mag_err:.2f} {magtype} {id}'
+              )
+         You can also test by just passing the string to `fields` option.
+      2. Implement writing functionality in write_csv by adding the new
+         properties to the dict d. Missing values have to be handled.
+      3. Implement reading functionality for the new properties in read_csv.
+      4. Write some tests testing all new properties. Check that an event with
+         all new properties defined or missing can be written and read again.
+    Similar can be done for the picks using PFIELDS, _write_picks, _read_picks
 """
 
 import csv
 from contextlib import contextmanager
 import io
 import math
+import pathlib
 from string import Formatter
 from warnings import warn
 import zipfile
@@ -36,9 +31,11 @@ import zipfile
 import numpy as np
 from obspy import UTCDateTime as UTC
 from obspy.core import event as evmod
+from obspy.core.util.decorator import map_example_filename
 
 
-__version__ = '0.8.1-dev'
+__version__ = '1.0.0-dev'
+
 
 # for reading
 DEFAULT = {'magtype': ''}
@@ -50,10 +47,10 @@ FIELDS = {
     'eventtxt': (
         '{id},{time!s:.25},{lat:.6f},{lon:.6f},{dep:.3f},{author},,{contrib},,'
         '{magtype},{mag:.2f},{magauthor},{region}').split(',')
-    }
+}
 PFIELDS = {
     'basic': '{seedid} {phase} {time:.5f} {weight:.3f}'
-    }
+}
 CSZ_COMMENT = f'CSZ format v{__version__} obspy_no_uncompress'.encode('utf-8')
 # for load_csv
 DTYPE = {
@@ -64,7 +61,7 @@ DTYPE = {
     'mag': float,
     'magtype': 'U10',
     'id': 'U50'
-    }
+}
 
 # catalog and contribid are not used
 EVENTTXT_NAMES = (  # for reading
@@ -78,26 +75,28 @@ EVENTTXT_HEADER = (  # for writing
 
 def _is_csv(fname, **kwargs):
     try:
-        return read_csv(fname, format_check=True)
-    except:
+        return _read_csv(fname, format_check=True)
+    except Exception:
         return False
 
 
 def _is_eventtxt(fname, **kwargs):
     try:
-        return read_eventtxt(fname, format_check=True)
-    except:
+        return _read_eventtxt(fname, format_check=True)
+    except Exception:
         return False
 
 
 def _is_csz(fname, **kwargs):
     try:
-        assert zipfile.is_zipfile(fname)
+        if not zipfile.is_zipfile(fname):
+            return False
         with zipfile.ZipFile(fname) as zipf:
-            assert (zipf.comment.startswith(b'CSZ') and
-                    zipf.comment.endswith(b'obspy_no_uncompress'))
+            if not (zipf.comment.startswith(b'CSZ') and
+                    zipf.comment.endswith(b'obspy_no_uncompress')):
+                return False
         return True
-    except:
+    except Exception:
         return False
 
 
@@ -111,8 +110,8 @@ def _origin(event):
 
 @contextmanager
 def _open(filein, *args, **kwargs):
-    """Accept both files or file names"""
-    if isinstance(filein, str):  # filename
+    """Accept files or file names or pathlib objects"""
+    if isinstance(filein, (str, pathlib.PurePath)):  # filename
         with open(filein, *args, **kwargs) as f:
             yield f
     else:  # file-like object
@@ -132,35 +131,46 @@ def _string(row, key):
         return row[key].strip()
 
 
-def read_csv(fname, skipheader=0, default=None, names=None,
-             check_compression=None, format_check=False,
-             **kwargs):
+def _read_csv(fname, skipheader=0, default=None, names=None,
+              format_check=False, **kwargs):
     """
-    Read a CSV file and return ObsPy Catalog
+    Read a CSV file and return ObsPy catalog
 
+    :param fname: filename or file-like object to read from
     :param skipheader: skip first rows of file
-    :param depth_in_kim: depth is given in kilometer (default: True) or
-        meter (False)
     :param default: dictionary with default values, at the moment only
          magtype is supported,
-         i.e. to set magtypes use `default={'magtype': 'Ml'}`
+         i.e. to set magtypes use ``default={'magtype': 'Ml'}``
     :param names: determined automatically from header line of file,
         otherwise can be specified as string, sequence or dict
-    :param check_compression: not used by read_csv
-    :param format_check: Read only the first event
+    :param format_check: Check if the first event can be read
     :param **kargs: all other kwargs are passed to csv.DictReader,
         important additional arguments are fieldnames, dialect, delimiter, etc
 
-    You can read csv files created by this module or external csv files.
-    Example reading an external csv file:
+    Example
+    -------
 
-        from obspy import read_events
-        names = ('year mon day hour minu sec _ '
-                 'lat lon dep _ _ mag _ _ _ _ _ _ id')
-        catalog = read_events('external.csv', 'CSV', skipheader=1, names=names)
+    >>> from obspy import read_events
+    >>> events = read_events('/path/to/catalog.csv')
+    >>> print(events)  # doctest: +NORMALIZE_WHITESPACE
+    3 Event(s) in Catalog:
+    2012-04-04T14:21:42.300000Z | +41.818,  +79.689 | 4.4  mb
+    2012-04-04T14:18:37.000000Z | +39.342,  +41.044 | 4.3  ML
+    2012-04-04T14:08:46.000000Z | +38.017,  +37.736 | 3.0  ML
+
+    You can read CSV files created by this module or external CSV files.
+    Example reading an external CSV file:
+
+    >>> from obspy import read_events
+    >>> names = 'year mon day hour minu sec _ lat lon dep mag id'
+    >>> events = read_events(
+    ...     '/path/to/external.csv', 'CSV', skipheader=1, names=names)
+    >>> print(events)  # doctest: +NORMALIZE_WHITESPACE
+    1 Event(s) in Catalog:
+    2023-05-06T19:55:01.300000Z | +10.194, +124.830 | 0.2
     """
     if default is None:
-        default= DEFAULT
+        default = DEFAULT
     events = []
     with _open(fname) as f:
         for _ in range(skipheader):
@@ -181,7 +191,7 @@ def read_csv(fname, skipheader=0, default=None, names=None,
                     dep = float(row['dep']) * 1000
                 if math.isnan(dep):
                     raise
-            except:
+            except Exception:
                 dep = None
             author = _string(row, 'author')
             contrib = _string(row, 'contrib')
@@ -195,29 +205,29 @@ def read_csv(fname, skipheader=0, default=None, names=None,
                 longitude=row['lon'],
                 depth=dep,
                 creation_info=info
-                )
+            )
             try:
                 # add zero to eliminate negative zeros in magnitudes
                 mag = float(row['mag']) + 0
                 if math.isnan(mag):
                     raise
-            except:
+            except Exception:
                 magnitudes = []
             else:
                 try:
                     magtype = row['magtype']
                     if magtype.lower() in ('', 'none', 'null', 'nan'):
                         raise
-                except:
+                except Exception:
                     magtype = default.get('magtype')
                 magauthor = _string(row, 'magauthor')
                 info = (evmod.CreationInfo(author=magauthor) if magauthor
                         else None)
                 magnitudes = [evmod.Magnitude(
                     mag=mag, magnitude_type=magtype, creation_info=info)]
-            if 'id' in row:
+            try:
                 id_ = evmod.ResourceIdentifier(row['id'].strip())
-            else:
+            except Exception:
                 id_ = None
             region = _string(row, 'region')
             descs = ([evmod.EventDescription(region, 'region name')]
@@ -227,7 +237,7 @@ def read_csv(fname, skipheader=0, default=None, names=None,
                 origins=[origin],
                 resource_id=id_,
                 event_descriptions=descs
-                )
+            )
             events.append(event)
             if format_check:
                 return True
@@ -238,18 +248,40 @@ def read_csv(fname, skipheader=0, default=None, names=None,
     return evmod.Catalog(events=events)
 
 
-def write_csv(events, fname, fields='basic', depth_in_km=True, delimiter=',',
-              header=None):
+def _write_csv(events, fname, fields='basic', depth_in_km=True, delimiter=',',
+               header=None):
     """
     Write ObsPy catalog to CSV file
 
     :param events: catalog or list of events
-    :param fname: file name
+    :param fname: filename or file-like object to write to
+    :param fields: set format and header names of CSV file, see
+       :const:`obspy.io.csv.FIELDS`, you can use your own format string here,
+       just make sure to use the pre-defined header names
     :param depth_in_km: write depth in units of kilometer (default: True) or
         meter
     :param delimiter: defaults to `','`, if the delimiter is changed, ObsPy's
         read_events function will not automatically identify the file as
         CSV file
+    :param header: Use a non-default header row
+
+    .. warning::
+        If the parameters `delimiter` or `header` are changed,
+        ObsPy's read_events function will not automatically identify the file
+        as CSV file
+
+    Example
+    -------
+
+    >>> from obspy import read_events
+    >>> events = read_events()  # get example catalog
+    >>> events.write('local_catalog.csv', 'CSV')  # declare 'CSV' as format
+    >>> with open('local_catalog.csv') as f: print(f.read())
+    id,time,lat,lon,dep,magtype,mag
+    20120404_0000041,2012-04-04T14:21:42.30000,41.818000,79.689000,1.000,mb,4.40
+    20120404_0000038,2012-04-04T14:18:37.00000,39.342000,41.044000,14.400,ML,4.30
+    20120404_0000039,2012-04-04T14:08:46.00000,38.017000,37.736000,7.000,ML,3.00
+    <BLANKLINE>
     """
     fields = FIELDS.get(fields, fields)
     if ' ' in fields:
@@ -267,7 +299,7 @@ def write_csv(events, fname, fields='basic', depth_in_km=True, delimiter=',',
             evid = str(event.resource_id).split('/')[-1]
             try:
                 origin = _origin(event)
-            except:
+            except Exception:
                 warn(f'No origin found -> do not write event {evid}')
                 continue
             try:
@@ -280,7 +312,7 @@ def write_csv(events, fname, fields='basic', depth_in_km=True, delimiter=',',
                 contrib = ''
             try:
                 magnitude = event.preferred_magnitude() or event.magnitudes[0]
-            except:
+            except Exception:
                 warn(f'No magnitude found for event {evid}')
                 mag = float('nan')
                 magtype = ''
@@ -290,11 +322,11 @@ def write_csv(events, fname, fields='basic', depth_in_km=True, delimiter=',',
                 magtype = magnitude.magnitude_type or ''
                 try:
                     magauthor = magnitude.creation_info.author
-                except:
+                except AttributeError:
                     magauthor = ''
             try:
                 dep = origin.depth / (1000 if depth_in_km else 1)
-            except:
+            except Exception:
                 warn(f'No depth set for event {evid}')
                 dep = float('nan')
             for description in event.event_descriptions:
@@ -306,7 +338,7 @@ def write_csv(events, fname, fields='basic', depth_in_km=True, delimiter=',',
             d = {'time': origin.time,
                  'lat': origin.latitude,
                  'lon': origin.longitude,
-                 'dep' if depth_in_km else 'depm' : dep,
+                 'dep' if depth_in_km else 'depm': dep,
                  'mag': mag,
                  'magtype': magtype,
                  'id': evid,
@@ -318,15 +350,17 @@ def write_csv(events, fname, fields='basic', depth_in_km=True, delimiter=',',
             f.write(fmtstr.format(**d).replace('nan', '') + '\n')
 
 
+@map_example_filename('fname')
 def load_csv(fname, skipheader=0, only=None, names=None,
              delimiter=',', **kw):
     """
     Load CSV or CSZ file into numpy array
 
+    :param skipheader, names: see :func:`_read_csv`
     :param only: sequence, read only columns speified by name
-    :param skipheader, names: see `read_csv`
-    :param **kw: Other kwargs are passed to `np.loadtxt`
+    :param **kw: Other kwargs are passed to :func:`numpy.loadtxt`
 
+    For an example see :mod:`obspy.io.csv`.
     """
     if isinstance(fname, str) and zipfile.is_zipfile(fname):
         with zipfile.ZipFile(fname) as zipf:
@@ -340,45 +374,95 @@ def load_csv(fname, skipheader=0, only=None, names=None,
             names = f.readline().strip().split(',')
         names = _names_sequence(names)
         dtype = [(n, DTYPE[n]) for n in names if n in DTYPE and
-                        (only is None or n in only)]
+                 (only is None or n in only)]
         usecols = [i for i, n in enumerate(names) if n in DTYPE and
-                        (only is None or n in only)]
+                   (only is None or n in only)]
         kw.setdefault('usecols', usecols)
         kw.setdefault('dtype', dtype)
         return np.genfromtxt(f, delimiter=delimiter, **kw)
 
 
-def events2array(events, **kw):
+def _events2array(events, **kw):
     """
     Convert ObsPy catalog to numpy array
 
-    All kwargs are passed to `load_csv`, e.g. use `only=('lat', 'lon', 'mag')`
+    All kwargs are passed to :func:`load_csv`, e.g. use
+    `only=('lat', 'lon', 'mag')`
     to get an array with lat, lon, mag parameters.
+
+    Example
+    -------
+
+    >>> from obspy import read_events
+    >>> from obspy.io.csv import _events2array
+    >>> events = read_events()
+    >>> t = _events2array(events)
+    >>> print(t.dtype.names)
+    ('id', 'time', 'lat', 'lon', 'dep', 'magtype', 'mag')
+    >>> print(t)   # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    [ ('20120404_0000041', '2012-04-04...', 41.818, 79.689, 1. , 'mb', 4.4)
+     ('20120404_0000038', '2012-04-04T...', 39.342, 41.044, 14.4, 'ML', 4.3)
+     ('20120404_0000039', '2012-04-04T...', 38.017, 37.736, 7. , 'ML', 3. )]
+    >>> print(t['mag'])
+    [ 4.4  4.3  3. ]
     """
     with io.StringIO() as f:
-        write_csv(events, f)
+        _write_csv(events, f)
         f.seek(0)
         return load_csv(f, **kw)
 
 
-def read_eventtxt(fname, default=None, format_check=False):
-    return read_csv(fname,
-                    skipheader=1, names=EVENTTXT_NAMES, delimiter='|',
-                    default=default, format_check=format_check)
+# for backwards compatibility
+events2array = _events2array
 
 
-def write_eventtxt(events, fname):
-    return write_csv(events, fname, fields='eventtxt', header=EVENTTXT_HEADER,
-                     delimiter='|')
+def _read_eventtxt(fname, default=None, format_check=False):
+    """
+    Read EVENTTXT file and return ObsPy catalog
+
+    :param fname: filename or file-like object to read from
+    :param default: dictionary with default values, at the moment only
+         magtype is supported,
+         i.e. to set magtypes use ``default={'magtype': 'Ml'}``
+    :param format_check: Check if the first event can be read
+
+    For an example see :mod:`obspy.io.csv`.
+    """
+    return _read_csv(fname,
+                     skipheader=1, names=EVENTTXT_NAMES, delimiter='|',
+                     default=default, format_check=format_check)
 
 
+def _write_eventtxt(events, fname):
+    """
+    Write ObsPy catalog to EVENTTXT file
+
+    :param events: catalog or list of events
+    :param fname: filename or file-like object to write to
+
+    For an example see :mod:`obspy.io.csv`.
+    """
+    return _write_csv(events, fname, fields='eventtxt', header=EVENTTXT_HEADER,
+                      delimiter='|')
+
+
+@map_example_filename('fname')
 def load_eventtxt(fname, **kw):
+    """
+    Load EVENTTXT file into numpy array
+
+    For possible arguments see :func:`load_csv`.
+    For an example see :mod:`obspy.io.csv`.
+    """
     kw.setdefault('delimiter', '|')
     kw.setdefault('skipheader', 1)
     return load_csv(fname, names=EVENTTXT_NAMES, **kw)
 
 
 def _read_picks(event, fname):
+    """
+    Read picks from CSV file and add them to event
+    """
     otime = _origin(event).time
     picks = []
     arrivals = []
@@ -400,6 +484,9 @@ def _read_picks(event, fname):
 
 
 def _write_picks(event, fname, fields_picks='basic', delimiter=','):
+    """
+    Write picks from event to a CSV file
+    """
     fields = PFIELDS.get(fields_picks, fields_picks)
     if ' ' in fields:
         fields = fields.split()
@@ -410,14 +497,16 @@ def _write_picks(event, fname, fields_picks='basic', delimiter=','):
     weights = {str(arrival.pick_id): arrival.time_weight
                for arrival in origin.arrivals if arrival.time_weight}
     phases = {str(arrival.pick_id): arrival.phase
-               for arrival in origin.arrivals if arrival.phase}
+              for arrival in origin.arrivals if arrival.phase}
     with _open(fname, 'w') as f:
         f.write(delimiter.join(fieldnames) + '\n')
         for pick in event.picks:
             pick_id = str(pick.resource_id)
             try:
                 seedid = pick.waveform_id.id
-            except:
+                if seedid is None:
+                    raise AttributeError
+            except AttributeError:
                 warn(f'No waveform id found for pick {pick_id}')
                 seedid = ''
             d = {'time': pick.time - origin.time,
@@ -427,21 +516,20 @@ def _write_picks(event, fname, fields_picks='basic', delimiter=','):
             f.write(fmtstr.format(**d) + '\n')
 
 
-def read_csz(fname, default=None, check_compression=None):
+def _read_csz(fname, default=None):
     """
-    Read a CSZ file and return ObsPy Catalog with picks
+    Read a CSZ file and return ObsPy catalog with picks
 
+    :param fname: filename or file-like object to read from
     :param default: dictionary with default values, at the moment only
          magtype is supported,
-         i.e. to set magtypes use `default={'magtype': 'Ml'}`
-    :param check_compression: Has to be set to False, when using
-        ObsPy's read_events() function, otherwise ObsPy will automatically
-        unpack the zip file and reading it with obspycsv will not work.
-        The option is not used by read_csz.
+         i.e. to set magtypes use ``default={'magtype': 'Ml'}``
+
+    For an example see :mod:`obspy.io.csv`.
     """
     with zipfile.ZipFile(fname) as zipf:
         with io.TextIOWrapper(zipf.open('events.csv'), encoding='utf-8') as f:
-            events = read_csv(f, default=default)
+            events = _read_csv(f, default=default)
         for event in events:
             evid = _evid(event)
             fname = f'picks_{evid}.csv'
@@ -452,17 +540,26 @@ def read_csz(fname, default=None, check_compression=None):
     return events
 
 
-def write_csz(events, fname, fields='basic', fields_picks='basic', **kwargs):
+def _write_csz(events, fname, fields='basic', fields_picks='basic', **kwargs):
     """
     Write ObsPy catalog to CSZ file
 
     :param events: catalog or list of events
-    :param fname: file name
-    :param **kwargs: compression and compression level can be specified see
-    https://docs.python.org/library/zipfile.html#zipfile.ZipFile
-    ```
-    events.write('CSZ', compression=True, compresslevel=9)
-    ```
+    :param fname: filename or file-like object to write to
+    :param fields: set format and header names of CSV file, see
+       :const:`obspy.io.csv.FIELDS`, you can use your own format string here,
+       just make sure to use the pre-defined header names
+    :param fields_picks: set format and header names of CSV pick files, see
+       :const:`obspy.io.csv.PFIELDS`, you can use your own format string here,
+       just make sure to use the pre-defined header names
+    :param **kwargs:
+ compression and compression level can be specified see
+ `zipfile doc <https://docs.python.org/library/zipfile.html#zipfile.ZipFile>`_:
+        ```
+        events.write('CSZ', compression=True, compresslevel=9)
+        ```
+
+    For an example see :mod:`obspy.io.csv`.
     """
     # allow True as value for compression
     if kwargs.get('compression') is True:
@@ -470,7 +567,7 @@ def write_csz(events, fname, fields='basic', fields_picks='basic', **kwargs):
     with zipfile.ZipFile(fname, mode='w', **kwargs) as zipf:
         zipf.comment = CSZ_COMMENT
         with io.StringIO() as f:
-            write_csv(events, f, fields=fields)
+            _write_csv(events, f, fields=fields)
             zipf.writestr('events.csv', f.getvalue())
         for event in events:
             if len(event.picks) == 0:
@@ -478,7 +575,7 @@ def write_csz(events, fname, fields='basic', fields_picks='basic', **kwargs):
             evid = str(event.resource_id).split('/')[-1]
             try:
                 _origin(event)
-            except:
+            except Exception:
                 continue
             with io.StringIO() as f:
                 _write_picks(event, f, fields_picks=fields_picks)

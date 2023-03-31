@@ -8,7 +8,13 @@ CSV, CSZ and EVENTTXT read/write support for ObsPy earthquake catalogs
 [![pyversions](https://img.shields.io/pypi/pyversions/obspycsv.svg)](https://python.org)
 [![zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.7225902.svg)](https://doi.org/10.5281/zenodo.7225902)
 
-## Installation
+**Note: Starting with ObsPy v1.5 this module is directly included in the obspy.io.csv module**
+
+No need to install this module anymore. For imports from `obspycsv` use the module `obspy.io.csv` instead.
+Please open issues and pull requests in the ObsPy repository.
+
+
+## Installation for ObsPy<1.5
 
 Install ObsPy. After that install obspycsv using pip by:
 
@@ -114,16 +120,16 @@ The `load_csv` function can be used to load a CSV or CSZ file as numpy array.
 
 ## Convert ObsPy catalog into numpy array
 
-The `events2array` function  can be used to convert an ObsPy catalog to numpy array.
+The `_events2array` function  can be used to convert an ObsPy catalog to numpy array.
 Code example creating event plots:
 
 ```py
 import matplotlib.pyplot as plt
 from obspy import read_events
-from obspycsv import events2array
+from obspycsv import _events2array
 
 events = read_events()
-t = events2array(events)
+t = _events2array(events)
 plt.subplot(121)
 plt.scatter(t['lon'], t['lat'], 4*t['mag']**2)
 plt.subplot(122)

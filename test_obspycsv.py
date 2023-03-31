@@ -1,4 +1,5 @@
-# Copyright 2022 Tom Eulenfeld, MIT license
+# Copyright 2022-2023 Tom Eulenfeld, MIT license
+
 import io
 import os.path
 from tempfile import gettempdir
@@ -10,7 +11,6 @@ from obspy.core.util import NamedTemporaryFile
 import obspycsv
 from packaging import version
 import pytest
-
 
 
 def test_csv():
@@ -97,7 +97,7 @@ def test_csv_custom_fmt():
 
 def test_csv_empty():
     assert not obspycsv._is_csv(b'')
-    empty_cat = obspycsv.read_csv(b'')
+    empty_cat = obspycsv._read_csv(b'')
     assert len(empty_cat) == 0
 
 
@@ -166,7 +166,7 @@ def test_load_csv():
         events.write(ft.name, 'CSZ')
         t = obspycsv.load_csv(ft.name)
     assert t['mag'][0] == 4.4
-    t = obspycsv.events2array(events)
+    t = obspycsv._events2array(events)
     assert t['mag'][0] == 4.4
 
 
@@ -204,7 +204,7 @@ def test_load_csv_some_cols():
 
 def test_events2array():
     events = read_events()
-    t = obspycsv.events2array(events)
+    t = obspycsv._events2array(events)
     assert t['mag'][0] == 4.4
 
 

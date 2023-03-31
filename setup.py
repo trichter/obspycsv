@@ -26,16 +26,16 @@ ENTRY_POINTS = {
                            'EVENTTXT = obspycsv'],
     'obspy.plugin.event.CSV': [
         'isFormat = obspycsv:_is_csv',
-        'readFormat = obspycsv:read_csv',
-        'writeFormat = obspycsv:write_csv'],
+        'readFormat = obspycsv:_read_csv',
+        'writeFormat = obspycsv:_write_csv'],
     'obspy.plugin.event.CSZ': [
         'isFormat = obspycsv:_is_csz',
-        'readFormat = obspycsv:read_csz',
-        'writeFormat = obspycsv:write_csz'],
+        'readFormat = obspycsv:_read_csz',
+        'writeFormat = obspycsv:_write_csz'],
     'obspy.plugin.event.EVENTTXT': [
         'isFormat = obspycsv:_is_eventtxt',
-        'readFormat = obspycsv:read_eventtxt',
-        'writeFormat = obspycsv:write_eventtxt']
+        'readFormat = obspycsv:_read_eventtxt',
+        'writeFormat = obspycsv:_write_eventtxt']
     }
 
 CLASSIFIERS = [
